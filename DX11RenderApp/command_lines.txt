@@ -1,0 +1,11 @@
+
+
+complie shaders offline:
+
+DEBUG:
+fxc /Fc /Od /Zi /T fx_5_0 /Fo "%(RelativeDir)\%(Filename).fxo " "%(FullPath)" 
+RELEASE:
+fxc /T fx_5_0 /Fo "%(RelativeDir)\%(Filename).fxo " "%(FullPath)" 
+
+OUTPUT:
+%(RelativeDir)\%(Filename).fxo
