@@ -1,10 +1,10 @@
 #include "CubeApp.h"
 
 CubeApp::CubeApp(HINSTANCE _hInstance) :
-	D3DApp(_hInstance),
-	mPitch(MathHelper::Pi * 0.25f),
-	mYaw(1.5f*MathHelper::Pi),
-	mRadius(5.0f),
+	SceneRender(_hInstance),
+	//mPitch(MathHelper::Pi * 0.25f),
+	//mYaw(1.5f*MathHelper::Pi),
+	//mRadius(5.0f),
 	mCubeIB(nullptr),
 	mCubeVB(nullptr),
 	mInputLayout(nullptr),
@@ -19,8 +19,8 @@ CubeApp::CubeApp(HINSTANCE _hInstance) :
 	DirectX::XMMATRIX I = DirectX::XMMatrixIdentity();
 
 	DirectX::XMStoreFloat4x4(&mCubeWorld, I);
-	DirectX::XMStoreFloat4x4(&mView, I);
-	DirectX::XMStoreFloat4x4(&mProj, I);
+	//DirectX::XMStoreFloat4x4(&mView, I);
+	//DirectX::XMStoreFloat4x4(&mProj, I);
 }
 
 CubeApp::~CubeApp()
@@ -127,11 +127,25 @@ void CubeApp::BuildFX()
 {
 #pragma region Read The Complied Byte File
 
+	std::ifstream fin;
+	fin.open("FXs/Color.fxo", std::ios::binary);
+	if (fin.is_open())
+	{
+		fin.seekg(0, std::ios_base::end);
+		int size = (int)fin.tellg();
+		fin.seekg(0, std::ios_base::beg);
+		std::vector<char> compiledShader(size);
+		fin.read(compiledShader.data(), size);
+		fin.close();
 
-	if (!d3dHelper::LoadShaderByteCode("FXs/Color.fxo", md3dDevice, &mFX))
+
+		HR(D3DX11CreateEffectFromMemory(compiledShader.data(), size, 0, md3dDevice, &mFX));
+	}
+	else
 	{
 		MessageBox(0, L"Can not open shader file", 0, 0);
 	}
+
 
 #pragma endregion
 
@@ -160,10 +174,10 @@ void CubeApp::BuildVertexLayout()
 
 void CubeApp::OnResize()
 {
-	D3DApp::OnResize();
+	SceneRender::OnResize();
 
-	DirectX::XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(MathHelper::Pi * 0.25f, GetAspectRatio(), 1.0f, 1000.0f);
-	DirectX::XMStoreFloat4x4(&mProj, P);
+	//DirectX::XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(MathHelper::Pi * 0.25f, GetAspectRatio(), .3f, 200.0f);
+	//DirectX::XMStoreFloat4x4(&mProj, P);
 }
 
 void CubeApp::DrawScene()
@@ -183,9 +197,9 @@ void CubeApp::DrawScene()
 	// update the wvp on cbuffer
 
 	DirectX::XMMATRIX world = DirectX::XMLoadFloat4x4(&mCubeWorld);
-	DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&mView);
-	DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&mProj);
-	DirectX::XMMATRIX wvp = world * view * proj;
+	//DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&mView);
+	//DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&mProj);
+	DirectX::XMMATRIX wvp = world * GetMainCamera()->GetViewProj();
 
 	mfxWorldViewProj->SetMatrix(reinterpret_cast<const float*>(&wvp));
 
@@ -201,60 +215,64 @@ void CubeApp::DrawScene()
 	HR(mSwapChain->Present(0, 0));
 }
 
-void CubeApp::UpdateScene()
+
+
+void CubeApp::UpdateScene(float _deltaTime)
 {
 
-	// update view matrix
+	 //update view matrix
 
-	float sin_pitch = sinf(mPitch);
+	//float sin_pitch = sinf(mPitch);
 
 
-	float x = mRadius * sin_pitch * cosf(mYaw);
-	float z = mRadius * sin_pitch * sinf(mYaw);
-	float y = mRadius * cosf(mPitch);
+	//float x = mRadius * sin_pitch * cosf(mYaw);
+	//float z = mRadius * sin_pitch * sinf(mYaw);
+	//float y = mRadius * cosf(mPitch);
 
-	DirectX::XMVECTOR eye = DirectX::XMVectorSet(x, y, z, 1.0f);
-	DirectX::XMVECTOR tar = DirectX::XMVectorZero();
-	DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	//DirectX::XMVECTOR eye = DirectX::XMVectorSet(x, y, z, 1.0f);
+	//DirectX::XMVECTOR tar = DirectX::XMVectorZero();
+	//DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-	DirectX::XMMATRIX v = DirectX::XMMatrixLookAtLH(eye, tar, up);
-	DirectX::XMStoreFloat4x4(&mView, v);
+	//DirectX::XMMATRIX v = DirectX::XMMatrixLookAtLH(eye, tar, up);
+	//DirectX::XMStoreFloat4x4(&mView, v);
+	SceneRender::UpdateScene(_deltaTime);
 
 }
 
-void CubeApp::OnMouseDown(WPARAM _btnState, int x, int y)
-{
-	mMouseLastPos.x = x;
-	mMouseLastPos.y = y;
-	SetCapture(mhMainWnd);
-}
 
-void CubeApp::OnMouseUp(WPARAM _btnState, int x, int y)
-{
-	ReleaseCapture();
-}
+//void CubeApp::OnMouseDown(const MouseInfo & _mouseInfo)
+//{
+//	mMouseLastPos.x = _mouseInfo.x;
+//	mMouseLastPos.y = _mouseInfo.y;
+//	SetCapture(mhMainWnd);
+//}
 
-void CubeApp::OnMouseMove(WPARAM _btnState, int x, int y)
-{
-	if (_btnState & MK_LBUTTON)
-	{
-		float dx = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(x - mMouseLastPos.x));
-		float dy = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(y - mMouseLastPos.y));
-
-		mYaw -= dx;
-		mPitch += dy;
-		mPitch = MathHelper::Clamp(mPitch, 0.1f, MathHelper::Pi - 0.1f);
-
-	}
-	else if (_btnState & MK_RBUTTON)
-	{
-		float dx = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(x - mMouseLastPos.x));
-		float dy = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(y - mMouseLastPos.y));
-
-		mRadius += dx - dy;
-		mRadius = MathHelper::Clamp(mRadius, 3.0f, 15.0f);
-	}
-
-	mMouseLastPos.x = x;
-	mMouseLastPos.y = y;
-}
+//void CubeApp::OnMouseUp(WPARAM _btnState, int x, int y)
+//{
+//	/*ReleaseCapture();*/
+//}
+//
+//void CubeApp::OnMouseMove(WPARAM _btnState, int x, int y)
+//{
+//	if (_btnState & MK_LBUTTON)
+//	{
+//		float dx = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(x - mMouseLastPos.x));
+//		float dy = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(y - mMouseLastPos.y));
+//
+//		mYaw -= dx;
+//		mPitch += dy;
+//		mPitch = MathHelper::Clamp(mPitch, 0.1f, MathHelper::Pi - 0.1f);
+//
+//	}
+//	else if (_btnState & MK_RBUTTON)
+//	{
+//		float dx = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(x - mMouseLastPos.x));
+//		float dy = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(y - mMouseLastPos.y));
+//
+//		mRadius += dx - dy;
+//		mRadius = MathHelper::Clamp(mRadius, 3.0f, 15.0f);
+//	}
+//
+//	mMouseLastPos.x = x;
+//	mMouseLastPos.y = y;
+//}

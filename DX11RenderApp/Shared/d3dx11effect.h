@@ -36,7 +36,7 @@
 #if defined(DEBUG) | defined(_DEBUG)
 #pragma comment( lib, "effects11d.lib")
 #else
-#pragma comment(lib, "effects11.lib")
+#pragma comment(lib, "ëffects11.lib")
 #endif
 
 #include <stdint.h>

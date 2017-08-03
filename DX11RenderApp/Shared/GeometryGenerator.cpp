@@ -1,7 +1,6 @@
 #include "GeometryGenerator.h"
 
 
-
 GeometryGenerator::GeometryGenerator()
 {
 }

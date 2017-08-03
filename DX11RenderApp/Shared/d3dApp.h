@@ -5,6 +5,28 @@
 #include "GameTimer.h"
 
 
+struct WndInput
+{
+	WORD mButton;
+	WORD key;
+	SHORT wheelDistance;
+	POINT deltaXY;
+	POINT cursorPos_pre;
+	POINT cursorPos_curr;
+};
+struct MouseInfo
+{
+	WORD btnState;
+	SHORT wheelDistance;
+	int x;
+	int y;
+};
+
+
+
+
+
+
 class D3DApp
 {
 
@@ -16,10 +38,13 @@ protected:
 
 public:
 	
-	static D3DApp*    GetApp();
-	HINSTANCE         GetAppInstance() const; 
-	HWND              GetMainWnd() const;
-	float             GetAspectRatio() const;
+	static D3DApp*        GetApp();
+	HINSTANCE             GetAppInstance() const; 
+	HWND                  GetMainWnd() const;
+	float                 GetAspectRatio() const;
+	float                 GetDeltaTime() const;
+	POINT                 GetLastMousePosition() const;
+	const WndInput* const GetWndInput() const;
 
 
 	int Run();
@@ -30,33 +55,53 @@ public:
 
 protected:
 
-	bool InitMainWindow();
-	bool InitDirect3D();
-	void CalculateFrameRate();
+	bool  InitMainWindow();
+	bool  InitDirect3D();
+	void  CalculateFrameRate();
+
+
 
 	
 	// Resize swapChain, recreate RTV and SDV
 	virtual void OnResize();
-	virtual void UpdateScene() = 0;
+	virtual void UpdateScene(float _deltaTime) = 0;
 	virtual void DrawScene() = 0;
-	virtual void OnMouseDown(WPARAM btnState, int x, int y) {}
-	virtual void OnMouseUp(WPARAM btnState, int x, int y) {}
-	virtual void OnMouseMove(WPARAM btnState, int x, int y) {}
+
+	//virtual void OnMouseDown(const MouseInfo& _mouseInfo);
+	//virtual void OnMouseUp  (const MouseInfo& _mouseInfo);
+	//virtual void OnMouseMove(const MouseInfo& _mouseInfo);
+
+	virtual void OnMouseDown();
+
+	virtual void OnMouseUp();
+
+	virtual void OnMouseMove();
+
+	virtual void OnMouseWheel();
+
+	virtual void OnKeyDown();
+
 
 
 
 protected:
 
 	static D3DApp* mApp;
-	HINSTANCE mhAppInst;
-	HWND mhMainWnd;
-	bool bAppPaused;
-	bool bMinimized;
-	bool bMaximized;
-	bool bResizing;	
-	UINT m4xMsaaQuality;
+	HINSTANCE      mhAppInst;
+	HWND           mhMainWnd;
+	bool           bAppPaused;
+	bool           bMinimized;
+	bool           bMaximized;
+	bool           bResizing;	
+	UINT           m4xMsaaQuality;
+	float          mAspectRatio;
+	WndInput       mWndInput;
+
 
 	GameTimer mTimer;
+
+	POINT     mMouseLastPos;
+
 	
 	ID3D11Device*           md3dDevice;
 	ID3D11DeviceContext*    md3dImmediateContext;
@@ -73,6 +118,11 @@ protected:
 	int mClientHeight;
 	bool bEnable4xMsaa;
 
+private:
+
+	void CalculateAspectRatio();
+
+	void FetchWndInputOnMouse(WPARAM _wParam, LPARAM _lParam);
 
 };
 

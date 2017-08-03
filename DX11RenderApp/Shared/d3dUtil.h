@@ -2,11 +2,18 @@
 
 // Include Header file for Memory Leak Detection in Debug mode
 #if defined(DEBUG) | defined(_DEBUG)
-#define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
+#define _CRTDBG_MAP_ALLOC
 #endif
 
 
+#define KEY_W 0x57
+#define KEY_S 0x53
+#define KEY_A 0x41
+#define KEY_D 0x44
+
+
+// has d3d11.h
 #include <d3dx11effect.h>
 #include <DirectXColors.h>
 #include <DirectXMath.h>
@@ -14,7 +21,7 @@
 
 
 
-// Include DX debug code, and also d3d11.h, windows.h
+// Include DX debug code, windows.h
 #include "dxerr.h"
 // Include For Validation Check
 #include <cassert>
@@ -27,9 +34,13 @@
 
 #include "GeometryGenerator.h"
 
-
-#pragma comment (lib, "d3d11.lib")
 using namespace DirectX;
+
+
+
+
+
+
 
 
 #if defined(DEBUG) | defined(_DEBUG)
@@ -49,8 +60,6 @@ using namespace DirectX;
 	#define HR(x) (x)
 	#endif // !HR
 #endif
-
-
 
 #define ReleaseCOM(x) {if(x){x->Release(); x= 0;}}
 
@@ -80,11 +89,14 @@ public:
 
 };
 
-
 class d3dHelper
 {
 public:
+	static void LoadShaderByteCode();
+	static void ForwardVector(XMFLOAT3& _val);
+	static void RightVector(XMFLOAT3& _val);
+	static void UpVector(XMFLOAT3& _val);
 
-	static bool LoadShaderByteCode(const char* _filepath, ID3D11Device* _d3dDevice, ID3DX11Effect** _effect);
+
 };
 

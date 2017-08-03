@@ -19,15 +19,18 @@
     <Filter Include="Shared">
       <UniqueIdentifier>{c944d119-b147-4af0-a3fd-20b4d8de6b97}</UniqueIdentifier>
     </Filter>
+    <Filter Include="FXs">
+      <UniqueIdentifier>{70bf139a-c30a-4c96-a3e4-a49883eaf5c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Models">
+      <UniqueIdentifier>{18ba0828-65dd-451a-85b9-619080b733ad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\Apps\CubeApp.cpp">
-      <Filter>Apps</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Apps\DX11InitApp.cpp">
       <Filter>Apps</Filter>
     </ClCompile>
     <ClCompile Include="..\Shared\d3dApp.cpp">
@@ -48,12 +51,15 @@
     <ClCompile Include="..\Shared\MathHelper.cpp">
       <Filter>Shared</Filter>
     </ClCompile>
+    <ClCompile Include="..\Shared\SceneRenderApp.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\Camera.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Apps\CubeApp.h">
-      <Filter>Apps</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Apps\DX11InitApp.h">
       <Filter>Apps</Filter>
     </ClInclude>
     <ClInclude Include="..\Shared\d3dApp.h">
@@ -77,5 +83,16 @@
     <ClInclude Include="..\Shared\MathHelper.h">
       <Filter>Shared</Filter>
     </ClInclude>
+    <ClInclude Include="..\Shared\SceneRenderApp.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\Camera.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="FXs\Color.fx">
+      <Filter>FXs</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

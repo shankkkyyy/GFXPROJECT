@@ -30,8 +30,20 @@ HWND D3DApp::GetMainWnd() const
 
 float D3DApp::GetAspectRatio() const
 {
-	return static_cast<float>(mClientWidth)/mClientHeight;
+	return mAspectRatio;
 }
+
+float D3DApp::GetDeltaTime() const
+{
+	return mTimer.DeltaTime();
+}
+
+POINT D3DApp::GetLastMousePosition() const
+{
+	return mMouseLastPos;
+}
+
+
 
 D3DApp::D3DApp(HINSTANCE _hInstance) : 
 	mhAppInst(_hInstance),
@@ -51,9 +63,7 @@ D3DApp::D3DApp(HINSTANCE _hInstance) :
 	mDepthStencilBuffer(nullptr),
 	mSwapChain(nullptr),
 	m4xMsaaQuality(0)
-{
-	assert(mApp == nullptr);
-	mApp = this;		
+{		
 	ZeroMemory(&mScreenViewPort, sizeof(D3D11_VIEWPORT));
 }
 
@@ -69,6 +79,7 @@ D3DApp::~D3DApp()
 	ReleaseCOM(md3dRTV);
 	ReleaseCOM(md3dDSV);
 	ReleaseCOM(mDepthStencilBuffer);
+
 }
 
 int D3DApp::Run()
@@ -88,8 +99,9 @@ int D3DApp::Run()
 			mTimer.Tick();
 			if (!bAppPaused)
 			{
+				float deltaTime = mTimer.DeltaTime();
 				CalculateFrameRate();
-				UpdateScene();
+				UpdateScene(deltaTime);
 				DrawScene();
 			}
 			else
@@ -135,8 +147,8 @@ LRESULT D3DApp::MsgProc(HWND _hwnd, UINT _msg, WPARAM _wParam, LPARAM _lParam)
 			bAppPaused = false;
 			mTimer.Unpause();
 		}
+		return 0;
 	}
-	return 0;
 	case WM_SIZE:
 	{
 		mClientWidth = LOWORD(_lParam);
@@ -180,58 +192,89 @@ LRESULT D3DApp::MsgProc(HWND _hwnd, UINT _msg, WPARAM _wParam, LPARAM _lParam)
 				}
 			}
 		}
+		return 0;
+
 	}
-	return 0;
 	case WM_ENTERSIZEMOVE:
 	{
 		bAppPaused = true;
 		bResizing = true;
 		mTimer.Pause();
+		return 0;
+
 	}
-	return 0;
 	case WM_EXITSIZEMOVE:
 	{
 		bAppPaused = false;
 		bResizing = false;
 		mTimer.Unpause();
 		OnResize();
+		return 0;
+
 	}
-	return 0;
 	case WM_DESTROY:
 	{		
 		PostQuitMessage(0);
+		return 0;
+
 	}
-	return 0;
 	case WM_MENUCHAR:
 		return MAKELRESULT(0, MNC_CLOSE);
 	case WM_GETMINMAXINFO:
 	{
 		((MINMAXINFO*)_lParam)->ptMinTrackSize.x = 200;
 		((MINMAXINFO*)_lParam)->ptMinTrackSize.y = 200;
+		return 0;
+
 	}
-	return 0;
 
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
 	case WM_MBUTTONDOWN:
-		OnMouseDown(_wParam, GET_X_LPARAM(_lParam), GET_Y_LPARAM(_lParam));
+	{
+		FetchWndInputOnMouse(_wParam, _lParam);
+		OnMouseDown(); 
 		return 0;
+	}
 	case WM_LBUTTONUP:
 	case WM_RBUTTONUP:
 	case WM_MBUTTONUP:
-		OnMouseUp(_wParam, GET_X_LPARAM(_lParam), GET_Y_LPARAM(_lParam));
+	{
+
+		FetchWndInputOnMouse(_wParam, _lParam);
+		OnMouseUp();
 		return 0;
+
+	}
 	case WM_MOUSEMOVE:
-		OnMouseMove(_wParam, GET_X_LPARAM(_lParam), GET_Y_LPARAM(_lParam));
+	{
+		FetchWndInputOnMouse(_wParam, _lParam);
+		OnMouseMove();
 		return 0;
+	}
+	case WM_MOUSEWHEEL:
+	{
+		mWndInput.wheelDistance = HIWORD(_wParam);
+		OnMouseWheel();
+		return 0;
+	}
+	case WM_KEYDOWN:
+	{
+		mWndInput.key = _wParam;
+		OnKeyDown();
+		return 0;
+	}
+
 	case WM_KEYUP:
 	{
 		if (_wParam == VK_ESCAPE)
 		{
 			PostQuitMessage(0);
 		}
+		return 0;
 	}
-	return 0;
+
+
 	default:
 		return DefWindowProc(_hwnd, _msg, _wParam, _lParam);
 	}
@@ -449,18 +492,63 @@ void D3DApp::OnResize()
 	// bind view to out merge stage
 	md3dImmediateContext->OMSetRenderTargets(1, &md3dRTV, md3dDSV);
 
-#pragma region Setup ViewPort
-	
+#pragma region Setup ViewPort	
 	mScreenViewPort.TopLeftX = 0;
 	mScreenViewPort.TopLeftY = 0;
 	mScreenViewPort.MinDepth = 0;
 	mScreenViewPort.MaxDepth = 1;
 	mScreenViewPort.Width = static_cast<float>(mClientWidth);
 	mScreenViewPort.Height = static_cast<float>(mClientHeight);
-
 	md3dImmediateContext->RSSetViewports(1, &mScreenViewPort);
-
-
 #pragma endregion
+
+	CalculateAspectRatio();
+
 }
+
+void D3DApp::OnMouseDown()
+{
+	mWndInput.cursorPos_pre = mWndInput.cursorPos_curr;
+	SetCapture(mhMainWnd);
+}
+
+void D3DApp::OnMouseUp()
+{
+	ReleaseCapture();
+}
+
+void D3DApp::OnMouseMove()
+{
+	mWndInput.cursorPos_pre = mWndInput.cursorPos_curr;
+}
+
+void D3DApp::OnMouseWheel()
+{
+
+}
+
+void D3DApp::OnKeyDown()
+{
+
+}
+
+const WndInput* const D3DApp::GetWndInput() const
+{
+	return &mWndInput;
+}
+
+void D3DApp::CalculateAspectRatio()
+{
+	mAspectRatio = static_cast<float>(mClientWidth) / mClientHeight;
+}
+
+void D3DApp::FetchWndInputOnMouse(WPARAM _wParam, LPARAM _lParam)
+{
+	mWndInput.mButton = _wParam;
+	mWndInput.cursorPos_curr.x = GET_X_LPARAM(_lParam);
+	mWndInput.cursorPos_curr.y = GET_Y_LPARAM(_lParam);
+	mWndInput.deltaXY.x = mWndInput.cursorPos_curr.x - mWndInput.cursorPos_pre.x;
+	mWndInput.deltaXY.y = mWndInput.cursorPos_curr.y - mWndInput.cursorPos_pre.y;
+}
+
 

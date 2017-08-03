@@ -1,6 +1,5 @@
 #pragma once
-#include "d3dApp.h"
-
+#include "SceneRenderApp.h"
 
 struct Vertex
 {
@@ -9,7 +8,7 @@ struct Vertex
 };
 
 class CubeApp :
-	public D3DApp
+	public SceneRender
 {
 public:
 	CubeApp(HINSTANCE _hInstance);
@@ -35,7 +34,7 @@ private:
 	float mPitch;
 	float mRadius;
 
-	POINT mMouseLastPos;
+	
 
 private:
 
@@ -50,17 +49,7 @@ private:
 
 	void DrawScene() override;
 
-	void UpdateScene() override;
-
-
-	// Update x, y while mouse down
-	void OnMouseDown(WPARAM _btnState, int x, int y) override;
-
-	// Stop x, y while mouse up
-	void OnMouseUp(WPARAM _btnState, int x, int y) override;
-
-	// Up pitch and yaw for updating the view matrix
-	void OnMouseMove(WPARAM _btnState, int x, int y) override;
+	void UpdateScene(float _deltaTime) override;
 
 };
 
