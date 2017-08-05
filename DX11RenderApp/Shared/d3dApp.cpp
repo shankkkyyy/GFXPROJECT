@@ -506,6 +506,8 @@ void D3DApp::OnResize()
 
 }
 
+
+
 void D3DApp::OnMouseDown()
 {
 	mWndInput.cursorPos_pre = mWndInput.cursorPos_curr;

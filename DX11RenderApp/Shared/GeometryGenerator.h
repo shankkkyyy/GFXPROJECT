@@ -15,7 +15,6 @@ public:
 		DirectX::XMFLOAT3 tangentU;
 		DirectX::XMFLOAT2 textureC;
 
-
 		MeshVertex() {}
 		MeshVertex(const DirectX::XMFLOAT3& _pos, 
 			const DirectX::XMFLOAT3& _nor,
@@ -39,9 +38,12 @@ public:
 	};
 
 public:
+
 	GeometryGenerator();
+
 	~GeometryGenerator();
 
 	static void CreateGird(float width, float depth, UINT hor, UINT vert, MeshData& _mesh);
+	
 };
 

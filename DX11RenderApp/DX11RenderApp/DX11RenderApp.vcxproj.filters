@@ -22,9 +22,6 @@
     <Filter Include="FXs">
       <UniqueIdentifier>{70bf139a-c30a-4c96-a3e4-a49883eaf5c1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Models">
-      <UniqueIdentifier>{18ba0828-65dd-451a-85b9-619080b733ad}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -57,6 +54,9 @@
     <ClCompile Include="..\Shared\Camera.cpp">
       <Filter>Shared</Filter>
     </ClCompile>
+    <ClCompile Include="Object.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Apps\CubeApp.h">
@@ -88,6 +88,9 @@
     </ClInclude>
     <ClInclude Include="..\Shared\Camera.h">
       <Filter>Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="Object.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

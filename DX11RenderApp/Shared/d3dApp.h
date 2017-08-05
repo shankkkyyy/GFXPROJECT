@@ -14,13 +14,7 @@ struct WndInput
 	POINT cursorPos_pre;
 	POINT cursorPos_curr;
 };
-struct MouseInfo
-{
-	WORD btnState;
-	SHORT wheelDistance;
-	int x;
-	int y;
-};
+
 
 
 
@@ -67,9 +61,6 @@ protected:
 	virtual void UpdateScene(float _deltaTime) = 0;
 	virtual void DrawScene() = 0;
 
-	//virtual void OnMouseDown(const MouseInfo& _mouseInfo);
-	//virtual void OnMouseUp  (const MouseInfo& _mouseInfo);
-	//virtual void OnMouseMove(const MouseInfo& _mouseInfo);
 
 	virtual void OnMouseDown();
 

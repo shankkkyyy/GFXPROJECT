@@ -29,7 +29,9 @@
 
 
 #include <fstream>
+#include <sstream>
 #include <vector>
+#include <forward_list>
 #include "Mathhelper.h"
 
 #include "GeometryGenerator.h"
@@ -67,6 +69,10 @@ using namespace DirectX;
 
 #define SafeDelete(x) {delete x; x = 0;}
 
+
+
+
+
 class TextHelper
 {
 public:
@@ -96,7 +102,118 @@ public:
 	static void ForwardVector(XMFLOAT3& _val);
 	static void RightVector(XMFLOAT3& _val);
 	static void UpVector(XMFLOAT3& _val);
+};
 
+
+
+
+
+struct OBJVertexIndices
+{
+	UINT positionIndex;
+	UINT uvIndex;
+	UINT normalIndex;
+	UINT Index = 0;
+
+	OBJVertexIndices() {}
+	OBJVertexIndices(UINT _vi, UINT _uvi, UINT _ni) :
+		positionIndex(_vi), uvIndex(_uvi), normalIndex(_ni)
+	{}
+	bool operator== (const OBJVertexIndices& _other)
+	{
+		if (this == &_other)
+		{
+			return true;
+		}
+		else
+		{
+			if (positionIndex == _other.positionIndex
+				&& uvIndex == _other.uvIndex
+				&& normalIndex == _other.normalIndex)
+			{
+				return true;
+			}
+			else return false;
+		}
+	}
+};
+
+#pragma region  Hash Search Table
+
+
+template<typename Type>
+class HTable
+{
+
+	const unsigned           mBucketSize;
+	unsigned                 mSize;
+	unsigned(*hFunction)(const Type &v);
+
+	std::forward_list<Type>* mEntries;
+
+public:
+
+	HTable(unsigned _bucketSize, unsigned(*_hFunc)(const Type &v));
+	~HTable();
+	HTable(const HTable& _other) = delete;
+	HTable& operator = (const HTable& _other) = delete;
+
+public:
+
+	unsigned GetSize() const;
+
+	// Research the agru, return the research result 
+	const Type* const Find(const Type& _v);
+	void Insert(const Type& _v);
 
 };
+
+template<typename Type>
+inline HTable<Type>::HTable(unsigned _bucketSize, unsigned(*_hFunc)(const Type &v))
+	:mBucketSize(_bucketSize), hFunction(_hFunc), mSize(0)
+{
+	mEntries = new std::forward_list<Type>[_bucketSize];
+}
+
+template<typename Type>
+inline HTable<Type>::~HTable()
+{
+	delete[] mEntries;
+}
+
+template<typename Type>
+inline unsigned HTable<Type>::GetSize() const
+{
+	return mSize;
+}
+
+template<typename Type>
+inline const Type* const HTable<Type>::Find(const Type& _v) 
+{
+	unsigned bucket = hFunction(_v);
+
+	auto iter = mEntries[bucket].begin();
+	Type* bFind = nullptr;
+	while (iter != mEntries[bucket].end())
+	{
+		if (*iter == _v)
+		{
+			bFind = &(*iter);
+			break;
+		}
+		iter++;
+	}
+	return bFind;
+}
+
+template<typename Type>
+inline void HTable<Type>::Insert(const Type & _v)
+{
+	unsigned bucket = hFunction(_v);
+	mEntries[bucket].push_front(_v);
+	mSize++;
+}
+
+
+#pragma endregion
 

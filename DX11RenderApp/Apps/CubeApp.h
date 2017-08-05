@@ -27,14 +27,10 @@ private:
 	ID3DX11EffectMatrixVariable* mfxWorldViewProj;
 
 	DirectX::XMFLOAT4X4 mCubeWorld;
-	DirectX::XMFLOAT4X4 mView;
-	DirectX::XMFLOAT4X4 mProj;
 
-	float mYaw;
-	float mPitch;
-	float mRadius;
+	UINT indicesAmount;
 
-	
+
 
 private:
 

@@ -10,7 +10,7 @@ Camera::Camera() :
 {
 
 	XMFLOAT4X4 r;
-	XMStoreFloat4x4(&r, XMMatrixRotationRollPitchYaw(0.25f*MathHelper::Pi, 0.0f , 0.0f)); //1.5f*MathHelper::Pi
+	XMStoreFloat4x4(&r, XMMatrixRotationRollPitchYaw(0.0f, 0.0f , 0.0f)); //1.5f*MathHelper::Pi
 
 	mRight   = { r(0, 0) , r(0, 1), r(0, 2) };
 	mUp      = { r(1, 0) , r(1, 1), r(1, 2) };
@@ -64,6 +64,11 @@ void Camera::Update(float _deltaTime)
 	{
 		MoveRight(10.0f * _deltaTime);
 	}
+
+
+
+
+
 
 #pragma endregion
 

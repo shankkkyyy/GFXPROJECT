@@ -1,0 +1,40 @@
+# Blender MTL File: 'Mp7.blend'
+# Material Count: 4
+
+newmtl Collimator_sight
+Ns 544.238672
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 1.000000 1.000000 1.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd D:\Program\Blender\Assets\Weapons\collimator_sight_D.jpg
+
+newmtl Collimator_sight_NONE
+Ns 544.238672
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 1.000000 1.000000 1.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl MP_7
+Ns 96.078431
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd Mp7_AO.jpg
+
+newmtl SPR_Silencer
+Ns 647.119343
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 1.000000 1.000000 1.000000
+Ni 1.000000
+d 1.000000
+illum 2

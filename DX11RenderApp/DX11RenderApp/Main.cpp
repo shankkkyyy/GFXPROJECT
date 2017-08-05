@@ -1,8 +1,14 @@
 #include "CubeApp.h"
+//#include "d3dUtil.h"
+//#include "Object.h"
+
+
 
 
 int WINAPI WinMain(HINSTANCE _hInstance, HINSTANCE _prevInstance, PSTR cmdLine, int showCmd)
 {
+
+
 
 	CubeApp App(_hInstance);
 

@@ -1,0 +1,9 @@
+newmtl m16:default00
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.88 0.88 0.88
+Tf 1.00 1.00 1.00
+map_Kd m16.bmp
+Ni 1.00
+Ks 1.00 1.00 1.00
+Ns 0.25

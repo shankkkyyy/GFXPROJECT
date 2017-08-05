@@ -1,10 +1,9 @@
 #include "CubeApp.h"
+#include "Object.h"
+
 
 CubeApp::CubeApp(HINSTANCE _hInstance) :
 	SceneRender(_hInstance),
-	//mPitch(MathHelper::Pi * 0.25f),
-	//mYaw(1.5f*MathHelper::Pi),
-	//mRadius(5.0f),
 	mCubeIB(nullptr),
 	mCubeVB(nullptr),
 	mInputLayout(nullptr),
@@ -19,8 +18,7 @@ CubeApp::CubeApp(HINSTANCE _hInstance) :
 	DirectX::XMMATRIX I = DirectX::XMMatrixIdentity();
 
 	DirectX::XMStoreFloat4x4(&mCubeWorld, I);
-	//DirectX::XMStoreFloat4x4(&mView, I);
-	//DirectX::XMStoreFloat4x4(&mProj, I);
+
 }
 
 CubeApp::~CubeApp()
@@ -50,24 +48,26 @@ void CubeApp::BuildGeometryBuffer()
 {
 #pragma region Create Vertex Buffer
 
-	Vertex vertices[] =
+
+	Mesh Mp7;
+	Object::LoadObjFile("../Models/M16/m16Maya.obj", Mp7);
+
+
+	UINT verticesSize = Mp7.vertices.size();
+	Vertex* vertices = new Vertex[verticesSize];
+
+	for (UINT iv = 0; iv < Mp7.vertices.size(); iv++)
 	{
-		{ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::White)) },
-		{ DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::Black)) },
-		{ DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::Red)) },
-		{ DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::Green)) },
-
-		{ DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::Blue)) },
-		{ DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::Yellow)) },
-		{ DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::Cyan)) },
-		{ DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4((const float*)(&DirectX::Colors::Magenta)) }
-
-	};
+		vertices[iv].pos = Mp7.vertices[iv].pos;
+		vertices[iv].color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	}
+	
 
 	D3D11_BUFFER_DESC vbd;
 	ZeroMemory(&vbd, sizeof(D3D11_BUFFER_DESC));
 	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.ByteWidth = 8 * sizeof(Vertex);
+	//vbd.ByteWidth = 8 * sizeof(Vertex);
+	vbd.ByteWidth = verticesSize * sizeof(Vertex);
 	vbd.Usage = D3D11_USAGE_IMMUTABLE;
 	vbd.CPUAccessFlags = 0;
 	vbd.MiscFlags = 0;
@@ -83,31 +83,18 @@ void CubeApp::BuildGeometryBuffer()
 
 #pragma region Create Indices Buffer
 
-	UINT indices[] =
+	indicesAmount = Mp7.indices.size();
+	UINT* indices = new UINT[indicesAmount];
+
+	for (UINT ii = 0; ii < indicesAmount; ii++)
 	{
-		// front, back, left ,right, up, down
-		0, 1, 2,
-		0, 2, 3,
+		indices[ii] = Mp7.indices[ii];
+	}
 
-		4, 6, 5,
-		4, 7, 6,
-
-		4, 5, 1,//0, 5, 1,
-		4, 1, 0,//0, 4, 5,
-
-		3, 2, 6,
-		3, 6, 7,
-
-		1, 5, 6,
-		1, 6, 2,
-
-		4, 0 ,3, //0, 7, 4,
-		4, 3, 7//0, 3, 7
-	};
 	D3D11_BUFFER_DESC ibd;
 	ZeroMemory(&ibd, sizeof(ibd));
 	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	ibd.ByteWidth = 36 * sizeof(UINT);
+	ibd.ByteWidth = indicesAmount * sizeof(UINT);
 	ibd.Usage = D3D11_USAGE_IMMUTABLE;
 	ibd.CPUAccessFlags = 0;
 	ibd.MiscFlags = 0;
@@ -119,6 +106,9 @@ void CubeApp::BuildGeometryBuffer()
 	iInitData.pSysMem = indices;
 
 	HR(md3dDevice->CreateBuffer(&ibd, &iInitData, &mCubeIB));
+
+	delete[] vertices;
+	delete[] indices;
 
 #pragma endregion
 }
@@ -137,7 +127,6 @@ void CubeApp::BuildFX()
 		std::vector<char> compiledShader(size);
 		fin.read(compiledShader.data(), size);
 		fin.close();
-
 
 		HR(D3DX11CreateEffectFromMemory(compiledShader.data(), size, 0, md3dDevice, &mFX));
 	}
@@ -176,13 +165,11 @@ void CubeApp::OnResize()
 {
 	SceneRender::OnResize();
 
-	//DirectX::XMMATRIX P = DirectX::XMMatrixPerspectiveFovLH(MathHelper::Pi * 0.25f, GetAspectRatio(), .3f, 200.0f);
-	//DirectX::XMStoreFloat4x4(&mProj, P);
 }
 
 void CubeApp::DrawScene()
 {
-	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::AntiqueWhite);
+	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Black);
 	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 
@@ -197,8 +184,6 @@ void CubeApp::DrawScene()
 	// update the wvp on cbuffer
 
 	DirectX::XMMATRIX world = DirectX::XMLoadFloat4x4(&mCubeWorld);
-	//DirectX::XMMATRIX view = DirectX::XMLoadFloat4x4(&mView);
-	//DirectX::XMMATRIX proj = DirectX::XMLoadFloat4x4(&mProj);
 	DirectX::XMMATRIX wvp = world * GetMainCamera()->GetViewProj();
 
 	mfxWorldViewProj->SetMatrix(reinterpret_cast<const float*>(&wvp));
@@ -210,69 +195,19 @@ void CubeApp::DrawScene()
 	for (UINT i = 0; i < td.Passes; i++)
 	{
 		mTech->GetPassByIndex(i)->Apply(0, md3dImmediateContext);
-		md3dImmediateContext->DrawIndexed(36, 0, 0);
+		md3dImmediateContext->DrawIndexed(indicesAmount, 0, 0);
+		//md3dImmediateContext->DrawIndexed(36, 0, 0);
+
 	}
 	HR(mSwapChain->Present(0, 0));
 }
 
-
-
 void CubeApp::UpdateScene(float _deltaTime)
 {
 
-	 //update view matrix
-
-	//float sin_pitch = sinf(mPitch);
-
-
-	//float x = mRadius * sin_pitch * cosf(mYaw);
-	//float z = mRadius * sin_pitch * sinf(mYaw);
-	//float y = mRadius * cosf(mPitch);
-
-	//DirectX::XMVECTOR eye = DirectX::XMVectorSet(x, y, z, 1.0f);
-	//DirectX::XMVECTOR tar = DirectX::XMVectorZero();
-	//DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	//DirectX::XMMATRIX v = DirectX::XMMatrixLookAtLH(eye, tar, up);
-	//DirectX::XMStoreFloat4x4(&mView, v);
 	SceneRender::UpdateScene(_deltaTime);
 
 }
 
 
-//void CubeApp::OnMouseDown(const MouseInfo & _mouseInfo)
-//{
-//	mMouseLastPos.x = _mouseInfo.x;
-//	mMouseLastPos.y = _mouseInfo.y;
-//	SetCapture(mhMainWnd);
-//}
 
-//void CubeApp::OnMouseUp(WPARAM _btnState, int x, int y)
-//{
-//	/*ReleaseCapture();*/
-//}
-//
-//void CubeApp::OnMouseMove(WPARAM _btnState, int x, int y)
-//{
-//	if (_btnState & MK_LBUTTON)
-//	{
-//		float dx = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(x - mMouseLastPos.x));
-//		float dy = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(y - mMouseLastPos.y));
-//
-//		mYaw -= dx;
-//		mPitch += dy;
-//		mPitch = MathHelper::Clamp(mPitch, 0.1f, MathHelper::Pi - 0.1f);
-//
-//	}
-//	else if (_btnState & MK_RBUTTON)
-//	{
-//		float dx = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(x - mMouseLastPos.x));
-//		float dy = 0.25f * DirectX::XMConvertToRadians(static_cast<float>(y - mMouseLastPos.y));
-//
-//		mRadius += dx - dy;
-//		mRadius = MathHelper::Clamp(mRadius, 3.0f, 15.0f);
-//	}
-//
-//	mMouseLastPos.x = x;
-//	mMouseLastPos.y = y;
-//}
