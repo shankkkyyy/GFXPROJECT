@@ -74,7 +74,6 @@ void GeometryGenerator::CreateCube(float _width, float _height, float _depth, Me
 	// Create the indices.
 	//
 
-	UINT i[36];
 
 	// Fill in the front face index data
 	_mesh->indices[0] = 0; _mesh->indices[1] = 1; _mesh->indices[2] = 2;
