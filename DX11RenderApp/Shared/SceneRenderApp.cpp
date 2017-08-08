@@ -16,9 +16,9 @@ SceneRender::~SceneRender()
 
 }
 
+
 Camera * SceneRender::GetMainCamera() const
-{
-	
+{	
 	return mMainCamera;
 }
 

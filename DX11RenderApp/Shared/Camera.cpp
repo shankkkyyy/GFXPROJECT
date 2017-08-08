@@ -15,7 +15,7 @@ Camera::Camera() :
 	mRight   = { r(0, 0) , r(0, 1), r(0, 2) };
 	mUp      = { r(1, 0) , r(1, 1), r(1, 2) };
 	mForward = { r(2, 0) , r(2, 1), r(2, 2) };
-	mPosition = { 0, 0, 0 };
+	mPosition = { 0, 8, 0 };
 
 	Zoom(-5.0f);
 	
@@ -23,6 +23,16 @@ Camera::Camera() :
 
 Camera::~Camera()
 {
+}
+
+DirectX::XMFLOAT3 Camera::GetPosition() const
+{
+	return mPosition;
+}
+
+DirectX::XMVECTOR Camera::GetPositionXM() const
+{
+	return XMLoadFloat3(&mPosition);
 }
 
 DirectX::XMMATRIX Camera::GetView() const
@@ -63,6 +73,15 @@ void Camera::Update(float _deltaTime)
 	else if (GetAsyncKeyState(KEY_D) & 0x8000)
 	{
 		MoveRight(10.0f * _deltaTime);
+	}
+
+	if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+	{
+		MoveY(10.0f * _deltaTime);
+	}
+	else if (GetAsyncKeyState(VK_LSHIFT) & 0x8000)
+	{
+		MoveY(-10.0f * _deltaTime);
 	}
 
 
@@ -128,8 +147,8 @@ void Camera::OnMouseMove()
 	const WndInput* const input = SceneRender::GetApp()->GetWndInput();
 	if (input->mButton & MK_LBUTTON)
 	{
-		float yaw = XMConvertToRadians(0.25f * static_cast<float>(input->deltaXY.x));
-		float pitch = XMConvertToRadians(0.25f * static_cast<float>(input->deltaXY.y));
+		float yaw = XMConvertToRadians(0.1f * static_cast<float>(input->deltaXY.x));
+		float pitch = XMConvertToRadians(0.1f * static_cast<float>(input->deltaXY.y));
 		LookUp(pitch);
 		LookRight(yaw);
 	}
@@ -160,6 +179,11 @@ void Camera::MoveRight(float _delta)
 	XMVECTOR scaler = XMVectorSet(_delta, 0.0f, _delta, _delta);
 	XMVECTOR right = XMLoadFloat3(&mRight);
 	XMStoreFloat3(&mPosition, XMVectorMultiplyAdd(right, scaler, XMLoadFloat3(&mPosition)));
+}
+
+void Camera::MoveY(float _delta)
+{
+	mPosition.y += _delta;
 }
 
 void Camera::Zoom(float _delta)

@@ -1,11 +1,9 @@
 #pragma once
 #include "SceneRenderApp.h"
+#include "Object.h"
+#include "Effect.h"
 
-struct Vertex
-{
-	DirectX::XMFLOAT3 pos;
-	DirectX::XMFLOAT4 color;
-};
+
 
 class CubeApp :
 	public SceneRender
@@ -20,25 +18,25 @@ private:
 
 	ID3D11Buffer* mCubeVB;
 	ID3D11Buffer* mCubeIB;
-	ID3D11InputLayout* mInputLayout;
-
-	ID3DX11Effect* mFX;
-	ID3DX11EffectTechnique* mTech;
-	ID3DX11EffectMatrixVariable* mfxWorldViewProj;
-
-	DirectX::XMFLOAT4X4 mCubeWorld;
+	ID3D11ShaderResourceView *mTexMap;
 
 	UINT indicesAmount;
 
 
+	SpotLight        mSpotLight;
+	PointLight       mPointLight;
+	DirectionalLight mDirLight;
+	
+	Material         mMaterial;
+	Objects          mObjects;
+
+
+	Object*   Car;
+	Object*   Plane;
 
 private:
 
 	void BuildGeometryBuffer();
-
-	void BuildFX();
-
-	void BuildVertexLayout();
 
 	// resize back and depth buffer and update the proj matrix
 	void OnResize() override;

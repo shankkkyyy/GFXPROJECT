@@ -12,6 +12,9 @@ public:
 	~Camera();
 
 
+
+	DirectX::XMFLOAT3 GetPosition() const;
+	DirectX::XMVECTOR GetPositionXM() const;
 	DirectX::XMMATRIX GetView() const;
 	DirectX::XMMATRIX GetProj() const;
 	DirectX::XMMATRIX GetViewProj() const;
@@ -53,11 +56,14 @@ private:
 private:
 
 
-	// move along world Z
+	// move along forward in X, Z space
 	void MoveForward(float _delta);
 
-	// move along world X
+	// move along right in X, Z space
 	void MoveRight(float _delta);
+
+	// move up world Y
+	void MoveY(float _delta);
 
 	// move along forward
 	void Zoom(float _delta);

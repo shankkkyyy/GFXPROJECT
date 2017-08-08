@@ -1,6 +1,5 @@
 #include "CubeApp.h"
-//#include "d3dUtil.h"
-//#include "Object.h"
+
 
 
 

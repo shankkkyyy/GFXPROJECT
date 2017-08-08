@@ -57,6 +57,18 @@
     <ClCompile Include="Object.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Effect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Vertex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\DDSTextureLoader.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Shared\WICTextureLoader.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Apps\CubeApp.h">
@@ -92,9 +104,33 @@
     <ClInclude Include="Object.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Effect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Lighting.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Vertex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\ddstextureloader.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Shared\WICTextureLoader.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="FXs\Color.fx">
+      <Filter>FXs</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FXs\Lighting.fx">
+      <Filter>FXs</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FXs\Vertex.fx">
+      <Filter>FXs</Filter>
+    </CustomBuild>
+    <CustomBuild Include="FXs\Shaders.fx">
       <Filter>FXs</Filter>
     </CustomBuild>
   </ItemGroup>

@@ -18,6 +18,8 @@
 #include <DirectXColors.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
+#include "ddsTextureloader.h"
+#include "wictextureLoader.h"
 
 
 
@@ -32,8 +34,10 @@
 #include <sstream>
 #include <vector>
 #include <forward_list>
-#include "Mathhelper.h"
 
+
+#include "Mathhelper.h"
+#include "Lighting.h"
 #include "GeometryGenerator.h"
 
 using namespace DirectX;
