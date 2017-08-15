@@ -100,6 +100,14 @@ protected:
 	ID3D11Texture2D*        mDepthStencilBuffer; // only GPU has access to read and write
 	ID3D11RenderTargetView* md3dRTV;
 	ID3D11DepthStencilView* md3dDSV;
+
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> mRSBackFCC = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState>
+		mRSDef = nullptr;
+
+
+
+
 	D3D11_VIEWPORT          mScreenViewPort;
 
 	

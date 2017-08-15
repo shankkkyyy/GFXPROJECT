@@ -4,6 +4,20 @@
 #include "d3dUtil.h"
 
 
+
+
+struct Vertex12
+{
+	DirectX::XMFLOAT3 pos;
+};
+
+
+struct Vertex24
+{
+	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT3 nor;
+};
+
 struct Vertex
 {
 	DirectX::XMFLOAT3 pos;
@@ -18,6 +32,7 @@ public:
 
 	static const D3D11_INPUT_ELEMENT_DESC IDBasic32[3];
 };
+
 
 class InputLayouts
 {

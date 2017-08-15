@@ -86,6 +86,8 @@ float4 PS(VertexOut pin, uniform bool bUseTex) : SV_TARGET
 	float4 litColor = { 0,0,0,0 };
 	litColor = texColor * (ambient + diffuse) + specular;
 	litColor.a = gMaterial.diffuse.a * texColor.a;
+	//litColor = ambient + diffuse + specular;
+	//litColor.a = gMaterial.diffuse.a;
 
 	return litColor;
 

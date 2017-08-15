@@ -34,6 +34,7 @@
 #include <sstream>
 #include <vector>
 #include <forward_list>
+#include <wrl.h> // for COM
 
 
 #include "Mathhelper.h"
@@ -102,7 +103,7 @@ public:
 class d3dHelper
 {
 public:
-	static void LoadShaderByteCode();
+	static bool LoadShaderByteCode(const wchar_t* _path, std::vector<char>& _byteCode);
 	static void ForwardVector(XMFLOAT3& _val);
 	static void RightVector(XMFLOAT3& _val);
 	static void UpVector(XMFLOAT3& _val);

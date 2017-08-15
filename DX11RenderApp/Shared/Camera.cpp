@@ -15,14 +15,18 @@ Camera::Camera() :
 	mRight   = { r(0, 0) , r(0, 1), r(0, 2) };
 	mUp      = { r(1, 0) , r(1, 1), r(1, 2) };
 	mForward = { r(2, 0) , r(2, 1), r(2, 2) };
-	mPosition = { 0, 8, 0 };
+	mPosition = { 0, 0, 0 };
 
-	Zoom(-5.0f);
-	
+	Zoom(-5.0f);	
 }
 
 Camera::~Camera()
 {
+}
+
+void Camera::SetPosition(const XMFLOAT3& _val)
+{
+	mPosition = _val;
 }
 
 DirectX::XMFLOAT3 Camera::GetPosition() const
@@ -48,6 +52,11 @@ DirectX::XMMATRIX Camera::GetProj() const
 DirectX::XMMATRIX Camera::GetViewProj() const
 {
 	return XMLoadFloat4x4(&mView) * XMLoadFloat4x4(&mProj);
+}
+
+DirectX::XMMATRIX Camera::GetWorld() const
+{
+	return XMLoadFloat4x4(&mWorld);
 }
 
 

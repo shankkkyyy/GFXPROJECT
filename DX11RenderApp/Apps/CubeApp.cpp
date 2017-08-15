@@ -41,25 +41,28 @@ bool CubeApp::InitApp()
 
 		mDirLight.ambient = { 0.3f, 0.3f, 0.3f, 1.0f };
 		mDirLight.diffuse = { 0.3f, 0.0f, 0.0f, 1.0f };
-		mDirLight.specular = { 0.1f, 0.1f, 0.1f, 16.0f };
+		mDirLight.specular = { 0.1f, 0.1f, 0.1f, 1.0f };
 		mDirLight.direction = { -1.0f, -1.0f, -1.0f };
 
 
 		mPointLight.ambient = { 0.2f, 0.2f, 0.2f, 1.0f };
 		mPointLight.diffuse = { 0.0f, 10.0f, 0.0f, 1.0f };
-		mPointLight.specular = { 0.5f, 0.5f, 0.5f, 16.0f };
+		mPointLight.specular = { 0.5f, 0.5f, 0.5f, 1.0f };
 		mPointLight.range = 50.0f;
 		mPointLight.position = { 0.0f ,5.0f, 0.0f };
 		mPointLight.attenuation = { 1, 1, 1 };
 
-		mSpotLight.ambient = { 0.1f, 0.1f, 0.1f, 1.0f };
-		mSpotLight.diffuse = { 0.0f, 0.0f, 6.0f, 1.0f };
-		mSpotLight.specular = { 0.5f, 0.5f, 0.5f, 16.0f };
-		mSpotLight.range = 50.0f;
-		mSpotLight.position = { 0.0f , 5.0f, -20.0f };
-		mSpotLight.attenuation = { 0, 1, 1 };
-		mSpotLight.direction = { 1.0f, -1.0f, 1.0f };
-		mSpotLight.spot = 4;
+		mSpotLight.ambient = { 0.0f, 0.0f, 0.0f, 1.0f };
+		mSpotLight.diffuse = { 1.0f, 1.0f, 0.0f, 1.0f };
+		mSpotLight.specular = { 1, 1, 1, 1.0f };
+		mSpotLight.range = 10.0f;
+		mSpotLight.position = { 0.0f , 5.0f, -5.0f };
+		mSpotLight.attenuation = { 1, 1, 1 };
+
+		XMVECTOR dir = XMVectorSet(1, -0.5f, 1, 0);
+		dir = XMVector3Normalize(dir);
+		XMStoreFloat3(&mSpotLight.direction, dir);		
+		mSpotLight.spot = 8;
 
 
 		mMaterial.ambient  = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -162,8 +165,6 @@ void CubeApp::DrawScene()
 
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-
-	// update the wvp on cbuffer
 
 	// per frame
 	Effects::BaseFx->SetDirectionLight(mDirLight);

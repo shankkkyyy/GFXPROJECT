@@ -15,10 +15,6 @@ class Object
 public:
 	Object();
 	virtual ~Object();
-
-
-
-
 public:
 	XMFLOAT3 mPos;
 	XMFLOAT3 mUp;
@@ -48,11 +44,8 @@ public:
 	void SetPosition(const XMFLOAT3& _pos);
 
 	void Update(float _deltaTime);
-
-	void Draw(ID3D11DeviceContext* const _d3dImmediateContext, 
-		UINT& _stride, UINT& _offset, CXMMATRIX _viewProj, UINT passIndex);
-
-
+	//void Draw(ID3D11DeviceContext* const _d3dImmediateContext, 
+	//	UINT& _stride, UINT& _offset, CXMMATRIX _viewProj, UINT passIndex);
 
 };
 
@@ -72,6 +65,10 @@ public:
 	static Material* GetDefMaterial();
 
 	static ID3D11ShaderResourceView* GetCarTexture();
+	static ID3D11ShaderResourceView* GetGrassTexture();
+
+
+	static ID3D11ShaderResourceView* GetSkyTexuture();
 
 private:
 	static Mesh*                     testCube_mesh;
@@ -81,6 +78,9 @@ private:
 	static Material* def_material;
 
 	static ID3D11ShaderResourceView* car_texture;
+	static ID3D11ShaderResourceView* grass_texture;
+
+	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sky_texture;
 
 
 public:

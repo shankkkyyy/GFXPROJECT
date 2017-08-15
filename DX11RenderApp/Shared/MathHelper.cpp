@@ -79,3 +79,13 @@ XMVECTOR MathHelper::RandHemisphereUnitVec3(XMVECTOR n)
 		return XMVector3Normalize(v);
 	}
 }
+
+XMVECTOR MathHelper::XMFloat3ToXMVector(const XMFLOAT3 & _val)
+{
+	return XMVectorSet(_val.x, _val.y, _val.z, 1.0f);
+}
+
+XMVECTOR MathHelper::XMFloat4ToXMVector(const XMFLOAT4& _val)
+{
+	return XMVectorSet(_val.x, _val.y, _val.z, _val.w);
+}

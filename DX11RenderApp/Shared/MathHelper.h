@@ -69,6 +69,9 @@ public:
 
 	static const float Infinity;
 	static const float Pi;
+
+	static DirectX::XMVECTOR XMFloat3ToXMVector(const DirectX::XMFLOAT3& _val);
+	static DirectX::XMVECTOR XMFloat4ToXMVector(const DirectX:: XMFLOAT4& _val);
 };
 
 #endif // MATHHELPER_H

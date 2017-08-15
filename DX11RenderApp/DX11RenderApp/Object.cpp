@@ -1,7 +1,6 @@
 #include "Object.h"
 #include "GeometryGenerator.h"
 #include "SceneRenderApp.h"
-#include "Effect.h"
 
 
 
@@ -44,7 +43,7 @@ void Object::BuildVIBuffer(ID3D11Device* const _d3dDevice, D3D11_BUFFER_DESC& _v
 		// VB:
 		ZeroMemory(&_vbd, sizeof(D3D11_BUFFER_DESC));
 		_vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		_vbd.ByteWidth = mMesh->vertices.size() * sizeof(Vertex);
+		_vbd.ByteWidth = (UINT)mMesh->vertices.size() * sizeof(Vertex);
 		_vbd.Usage = D3D11_USAGE_IMMUTABLE;
 		_vbd.CPUAccessFlags = 0;
 		_vbd.MiscFlags = 0;
@@ -59,7 +58,7 @@ void Object::BuildVIBuffer(ID3D11Device* const _d3dDevice, D3D11_BUFFER_DESC& _v
 		// IB:
 		ZeroMemory(&_ibd, sizeof(D3D11_BUFFER_DESC));
 		_ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		_ibd.ByteWidth = mMesh->indices.size() * sizeof(UINT);
+		_ibd.ByteWidth = (UINT)mMesh->indices.size() * sizeof(UINT);
 		_ibd.Usage = D3D11_USAGE_IMMUTABLE;
 		_ibd.CPUAccessFlags = 0;
 		_ibd.MiscFlags = 0;
@@ -84,42 +83,42 @@ void Object::Update(float _deltaTime)
 
 }
 
-void Object::Draw(ID3D11DeviceContext * const _d3dImmediateContext, UINT& _stride, UINT& _offset, CXMMATRIX _viewProj, UINT passIndex)
-{
-
-	if (mMesh != nullptr)
-	{
-		_d3dImmediateContext->IASetVertexBuffers(0, 1, &mVB, &_stride, &_offset);
-		_d3dImmediateContext->IASetIndexBuffer(mIB, DXGI_FORMAT_R32_UINT, 0);
-
-
-
-		XMMATRIX world = XMLoadFloat4x4(&mWorld);
-		XMMATRIX worldInvTranspose = MathHelper::InverseTranspose(world);
-		XMMATRIX worldViewProj = world * _viewProj;
-
-		Effects::BaseFx->SetWorldMatrix(world);
-		Effects::BaseFx->SetWorldInvTranspMatrix(worldInvTranspose);
-		Effects::BaseFx->SetWVPMatrix(worldViewProj);
-		Effects::BaseFx->SetTexTransform(XMLoadFloat4x4(&mTexTransform));
-		Effects::BaseFx->SetMaterial(*mMaterial);
-		
-		ID3DX11EffectTechnique* _activeTech;
-
-		if (mTexMap != nullptr)
-		{
-			Effects::BaseFx->SetTexResource(mTexMap);
-			_activeTech = Effects::BaseFx->mLightTech;
-		}
-		else
-		{
-			_activeTech = Effects::BaseFx->mLightTechNoTex;
-		}
-
-		_activeTech->GetPassByIndex(passIndex)->Apply(0, _d3dImmediateContext);
-		_d3dImmediateContext->DrawIndexed(mMesh->indices.size(), 0, 0);
-	}
-}
+//void Object::Draw(ID3D11DeviceContext * const _d3dImmediateContext, UINT& _stride, UINT& _offset, CXMMATRIX _viewProj, UINT passIndex)
+//{
+//
+//	if (mMesh != nullptr)
+//	{
+//		_d3dImmediateContext->IASetVertexBuffers(0, 1, &mVB, &_stride, &_offset);
+//		_d3dImmediateContext->IASetIndexBuffer(mIB, DXGI_FORMAT_R32_UINT, 0);
+//
+//
+//
+//		XMMATRIX world = XMLoadFloat4x4(&mWorld);
+//		XMMATRIX worldInvTranspose = MathHelper::InverseTranspose(world);
+//		XMMATRIX worldViewProj = world * _viewProj;
+//
+//		Effects::BaseFx->SetWorldMatrix(world);
+//		Effects::BaseFx->SetWorldInvTranspMatrix(worldInvTranspose);
+//		Effects::BaseFx->SetWVPMatrix(worldViewProj);
+//		Effects::BaseFx->SetTexTransform(XMLoadFloat4x4(&mTexTransform));
+//		Effects::BaseFx->SetMaterial(*mMaterial);
+//		
+//		ID3DX11EffectTechnique* _activeTech;
+//
+//		if (mTexMap != nullptr)
+//		{
+//			Effects::BaseFx->SetTexResource(mTexMap);
+//			_activeTech = Effects::BaseFx->mLightTech;
+//		}
+//		else
+//		{
+//			_activeTech = Effects::BaseFx->mLightTechNoTex;
+//		}
+//
+//		_activeTech->GetPassByIndex(passIndex)->Apply(0, _d3dImmediateContext);
+//		_d3dImmediateContext->DrawIndexed(mMesh->indices.size(), 0, 0);
+//	}
+//}
 
 
 
@@ -133,7 +132,8 @@ Material*       Objects::def_material = nullptr;
 
 
 ID3D11ShaderResourceView* Objects::car_texture = nullptr;
-
+ID3D11ShaderResourceView* Objects::grass_texture = nullptr;
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::sky_texture = nullptr;
 
 
 Objects::Objects()
@@ -144,9 +144,7 @@ Objects::Objects()
 
 	def_material = new Material();
 
-	def_material->ambient = { 0.2f,0.2f,0.2f,1.0f };
-	def_material->diffuse = { 1, 1, 1, 1 };
-	def_material->specular = { 0, 0, 0, 16.0f };
+	def_material->diffuseAlbedo = { 0.5f,0.5f,0.5f,1.0f };
 }
 
 Objects::~Objects()
@@ -158,6 +156,7 @@ Objects::~Objects()
 	delete def_material;
 
 	ReleaseCOM(car_texture);
+	ReleaseCOM(grass_texture);
 }
 
 Mesh * Objects::GetTestCubeMesh()
@@ -185,6 +184,16 @@ ID3D11ShaderResourceView * Objects::GetCarTexture()
 	return car_texture;
 }
 
+ID3D11ShaderResourceView * Objects::GetGrassTexture()
+{
+	return grass_texture;
+}
+
+ID3D11ShaderResourceView * Objects::GetSkyTexuture()
+{
+	return sky_texture.Get();
+}
+
 
 void Objects::LoadAssets(ID3D11Device* _device)
 {
@@ -194,8 +203,10 @@ void Objects::LoadAssets(ID3D11Device* _device)
 
 	GeometryGenerator::CreateCube(1, 1, 1, defCube_mesh);
 
-
 	HR(CreateWICTextureFromFile(_device, L"../Models/car.png", nullptr, &car_texture));
+	HR(CreateWICTextureFromFile(_device, L"../Models/grass.png", nullptr, &grass_texture));
+	HR(CreateDDSTextureFromFile(_device, L"../Models/sunsetcube.dds", nullptr, &sky_texture));
+
 }
 
 bool Objects::LoadObjFile(const char * _path, Mesh* _out)
@@ -322,8 +333,8 @@ bool Objects::LoadObjFile(const char * _path, Mesh* _out)
 					else
 					{
 						// it is unique
-						_out->indices[outMeshIndices] = uniqueVertexIndices.size();
-						tempVertecIndices[it].Index = uniqueVertexIndices.size();
+						_out->indices[outMeshIndices] = (UINT)uniqueVertexIndices.size();
+						tempVertecIndices[it].Index = (UINT)uniqueVertexIndices.size();
 						uniqueVertexIndices.push_back(tempVertecIndices[it]);
 						uniqueTable.Insert(tempVertecIndices[it]);
 						outMeshIndices++;

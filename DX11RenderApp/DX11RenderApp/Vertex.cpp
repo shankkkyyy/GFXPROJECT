@@ -1,5 +1,4 @@
 #include "Vertex.h"
-#include "Effect.h"
 
 
 const D3D11_INPUT_ELEMENT_DESC InputLayoutDesc::IDBasic32[3] = 
@@ -11,13 +10,7 @@ const D3D11_INPUT_ELEMENT_DESC InputLayoutDesc::IDBasic32[3] =
 
 ID3D11InputLayout* InputLayouts::ILBasic32 = nullptr;
 
-void InputLayouts::InitAll(ID3D11Device * _d3dDevice)
-{
-	
-	D3DX11_PASS_DESC pd;
-	Effects::BaseFx->mLightTech->GetPassByIndex(0)->GetDesc(&pd);
-	HR(_d3dDevice->CreateInputLayout(InputLayoutDesc::IDBasic32, _countof(InputLayoutDesc::IDBasic32), pd.pIAInputSignature, pd.IAInputSignatureSize, &ILBasic32));
-}
+
 
 void InputLayouts::DestroyAll()
 {

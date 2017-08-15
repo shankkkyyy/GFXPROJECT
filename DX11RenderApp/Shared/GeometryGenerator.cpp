@@ -102,4 +102,50 @@ void GeometryGenerator::CreateCube(float _width, float _height, float _depth, Me
 
 }
 
+void GeometryGenerator::CreateSphere(float _radius, UINT _stack, Mesh * _mesh)
+{
+
+	_mesh->vertices.clear();
+	_mesh->indices.clear();
+
+	float deltaRad_y = DirectX::XM_PI / _stack;
+	float deltaRad_xz = 2 * deltaRad_y;
+
+	UINT vertexPerStack = _stack + 1;
+
+	// Generate vertex
+	float x, y, z;
+	Vertex newVertex;
+	for (UINT iy = 0; iy < vertexPerStack; iy++)
+	{
+		y = XMScalarCos(deltaRad_y * iy) * _radius;
+		float xzRadius = XMScalarSin(deltaRad_y * iy) * _radius;
+		for (UINT ixz = 0; ixz < vertexPerStack; ixz++)
+		{
+			x = XMScalarSin(deltaRad_xz * ixz);
+			z = XMScalarCos(deltaRad_xz * ixz);
+			newVertex.pos = { x, y, z };
+			_mesh->vertices.push_back(newVertex);
+		}
+	}
+
+	// Generate Index
+	for (UINT iy = 0; iy < _stack; iy++)
+	{
+		for (UINT ixz = 0; ixz < _stack; ixz++)
+		{
+
+			UINT current = iy * vertexPerStack + ixz;
+			_mesh->indices.push_back(current);
+			_mesh->indices.push_back(current + 1);
+			_mesh->indices.push_back(current + vertexPerStack);
+
+			_mesh->indices.push_back(current + vertexPerStack);
+			_mesh->indices.push_back(current + 1);
+			_mesh->indices.push_back(current + vertexPerStack + 1);
+		}
+	}
+	
+}
+
 

@@ -22,13 +22,13 @@
     <Filter Include="FXs">
       <UniqueIdentifier>{70bf139a-c30a-4c96-a3e4-a49883eaf5c1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{7d9d6bfc-4d8c-4c90-8310-36f910fb1b12}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Apps\CubeApp.cpp">
-      <Filter>Apps</Filter>
     </ClCompile>
     <ClCompile Include="..\Shared\d3dApp.cpp">
       <Filter>Shared</Filter>
@@ -57,9 +57,6 @@
     <ClCompile Include="Object.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Effect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Vertex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -69,18 +66,15 @@
     <ClCompile Include="..\Shared\WICTextureLoader.cpp">
       <Filter>Shared</Filter>
     </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Apps</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\Apps\CubeApp.h">
-      <Filter>Apps</Filter>
-    </ClInclude>
     <ClInclude Include="..\Shared\d3dApp.h">
       <Filter>Shared</Filter>
     </ClInclude>
     <ClInclude Include="..\Shared\d3dUtil.h">
-      <Filter>Shared</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Shared\d3dx11effect.h">
       <Filter>Shared</Filter>
     </ClInclude>
     <ClInclude Include="..\Shared\dxerr.h">
@@ -104,9 +98,6 @@
     <ClInclude Include="Object.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Effect.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Lighting.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -119,19 +110,27 @@
     <ClInclude Include="..\Shared\WICTextureLoader.h">
       <Filter>Shared</Filter>
     </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Apps</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="FXs\Color.fx">
-      <Filter>FXs</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FXs\Lighting.fx">
-      <Filter>FXs</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FXs\Vertex.fx">
-      <Filter>FXs</Filter>
-    </CustomBuild>
-    <CustomBuild Include="FXs\Shaders.fx">
-      <Filter>FXs</Filter>
-    </CustomBuild>
+    <FxCompile Include="Shaders\VertexShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SkyBoxPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SkyBoxVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\ShaderHeaders.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

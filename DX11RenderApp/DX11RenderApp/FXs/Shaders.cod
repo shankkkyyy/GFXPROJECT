@@ -255,7 +255,7 @@ fxgroup
                 dcl_input_ps linear v2.xyz
                 dcl_input_ps linear v3.xy
                 dcl_output o0.xyzw
-                dcl_temps 17
+                dcl_temps 19
                 //
                 // Initial variable locations:
                 //   v0.x <- pin.pos_h.x; v0.y <- pin.pos_h.y; v0.z <- pin.pos_h.z; v0.w <- pin.pos_h.w; 
@@ -402,56 +402,63 @@ fxgroup
                 mov r6.xyz, cb0[11].xyzx
                 mov r7.xyz, cb0[12].xyzx
                 mov r8.xyz, cb0[13].xyzx
+                mov r9.xyz, cb0[14].xyzx
                 mov r0.w, cb0[11].w
                 mov r1.w, cb0[12].w
-                mov r9.xyz, cb1[16].xyzx
-                mov r10.xyz, cb1[17].xyzx
-                mov r11.xyz, cb1[18].xyzx
-                mov r12.xyz, v2.xyzx
+                mov r2.w, cb0[13].w
+                mov r10.xyz, cb1[16].xyzx
+                mov r11.xyz, cb1[17].xyzx
+                mov r12.xyz, cb1[18].xyzx
+                mov r13.xyz, v2.xyzx
                 mov r0.xyz, r0.xyzx
-                mov r13.xyz, v1.xyzx
+                mov r14.xyz, v1.xyzx
                 
                 #line 118 "E:\FullSail Assignment\GFXProject\GFXPROJECT\DX11RenderApp\DX11RenderApp\FXs\Lighting.fx"
-                itof r14.xyz, l(0, 0, 0, 0)  // r14.x <- ambient.x; r14.y <- ambient.y; r14.z <- ambient.z
-                itof r15.xyz, l(0, 0, 0, 0)  // r15.x <- diffuse.x; r15.y <- diffuse.y; r15.z <- diffuse.z
-                itof r16.xyz, l(0, 0, 0, 0)  // r16.x <- specular.x; r16.y <- specular.y; r16.z <- specular.z
-                mov r13.xyz, -r13.xyzx
-                add r7.xyz, r7.xyzx, r13.xyzx  // r7.x <- toLight.x; r7.y <- toLight.y; r7.z <- toLight.z
-                dp3 r2.w, r7.xyzx, r7.xyzx
-                sqrt r2.w, r2.w  // r2.w <- distance
-                div r7.xyz, r7.xyzx, r2.wwww
-                mov r13.xyz, -r7.xyzx
-                dp3 r3.w, r13.xyzx, r8.xyzx
+                itof r15.xyz, l(0, 0, 0, 0)  // r15.x <- ambient.x; r15.y <- ambient.y; r15.z <- ambient.z
+                itof r16.xyz, l(0, 0, 0, 0)  // r16.x <- diffuse.x; r16.y <- diffuse.y; r16.z <- diffuse.z
+                itof r17.xyz, l(0, 0, 0, 0)  // r17.x <- specular.x; r17.y <- specular.y; r17.z <- specular.z
+                mov r14.xyz, -r14.xyzx
+                add r7.xyz, r7.xyzx, r14.xyzx  // r7.x <- toLight.x; r7.y <- toLight.y; r7.z <- toLight.z
+                dp3 r3.w, r7.xyzx, r7.xyzx
+                sqrt r14.y, r3.w  // r14.y <- distance
+                div r7.xyz, r7.xyzx, r14.yyyy
+                mov r18.xyz, -r7.xyzx
+                dp3 r3.w, r18.xyzx, r8.xyzx
                 itof r4.w, l(0)
                 max r3.w, r3.w, r4.w  // r3.w <- k_spot
                 
                 #line 129
                 itof r4.w, l(0)
-                ne r3.w, r3.w, r4.w
-                mov r4.w, l(1.000000)  // r4.w <- k_spot
+                ne r4.w, r3.w, r4.w
+                log r3.w, r3.w
+                mul r2.w, r2.w, r3.w
+                exp r2.w, r2.w  // r2.w <- k_spot
                 
                 #line 134
-                mul r4.xyz, r4.xyzx, r4.wwww
-                mul r4.xyz, r9.xyzx, r4.xyzx  // r4.x <- ambient.x; r4.y <- ambient.y; r4.z <- ambient.z
+                mul r4.xyz, r4.xyzx, r2.wwww
+                mul r4.xyz, r10.xyzx, r4.xyzx  // r4.x <- ambient.x; r4.y <- ambient.y; r4.z <- ambient.z
                 
                 #line 137
-                lt r1.w, r2.w, r1.w
-                dp3 r2.w, r7.xyzx, r12.xyzx
-                itof r4.w, l(0)
-                max r2.w, r2.w, r4.w  // r2.w <- kd
+                lt r1.w, r14.y, r1.w
+                dp3 r2.w, r7.xyzx, r13.xyzx
+                itof r3.w, l(0)
+                max r2.w, r2.w, r3.w  // r2.w <- kd
                 
                 #line 142
-                itof r4.w, l(0)
-                ne r4.w, r2.w, r4.w
-                
-                #line 146
+                itof r3.w, l(0)
+                ne r3.w, r2.w, r3.w
+                mul r14.z, r14.y, r14.y
+                itof r14.x, l(1)
+                dp3 r5.w, r9.xyzx, r14.xyzx
+                div r5.w, l(1.000000), r5.w  // r5.w <- att
+                mul r2.w, r2.w, r5.w
                 mul r5.xyz, r5.xyzx, r2.wwww
-                mul r5.xyz, r10.xyzx, r5.xyzx  // r5.x <- diffuse.x; r5.y <- diffuse.y; r5.z <- diffuse.z
+                mul r5.xyz, r11.xyzx, r5.xyzx  // r5.x <- diffuse.x; r5.y <- diffuse.y; r5.z <- diffuse.z
                 mov r7.xyz, -r7.xyzx
-                dp3 r2.w, r7.xyzx, r12.xyzx
+                dp3 r2.w, r7.xyzx, r13.xyzx
                 add r2.w, r2.w, r2.w
                 mov r2.w, -r2.w
-                mul r8.xyz, r2.wwww, r12.xyzx
+                mul r8.xyz, r2.wwww, r13.xyzx
                 add r7.xyz, r7.xyzx, r8.xyzx  // r7.x <- r.x; r7.y <- r.y; r7.z <- r.z
                 dp3 r0.x, r7.xyzx, r0.xyzx
                 itof r0.y, l(0)
@@ -459,15 +466,18 @@ fxgroup
                 log r0.x, r0.x
                 mul r0.x, r0.x, r0.w
                 exp r0.x, r0.x  // r0.x <- ks
+                mul r0.x, r0.x, r5.w
                 mul r0.xyz, r6.xyzx, r0.xxxx
-                mul r0.xyz, r11.xyzx, r0.xyzx  // r0.x <- specular.x; r0.y <- specular.y; r0.z <- specular.z
-                movc r5.xyz, r4.wwww, r5.xyzx, r15.xyzx
-                movc r0.xyz, r4.wwww, r0.xyzx, r16.xyzx
-                movc r5.xyz, r1.wwww, r5.xyzx, r15.xyzx
-                movc r0.xyz, r1.wwww, r0.xyzx, r16.xyzx
-                movc r4.xyz, r3.wwww, r4.xyzx, r14.xyzx
-                movc r5.xyz, r3.wwww, r5.xyzx, r15.xyzx
-                movc r0.xyz, r3.wwww, r0.xyzx, r16.xyzx
+                mul r0.xyz, r12.xyzx, r0.xyzx  // r0.x <- specular.x; r0.y <- specular.y; r0.z <- specular.z
+                
+                #line 152
+                movc r5.xyz, r3.wwww, r5.xyzx, r16.xyzx
+                movc r0.xyz, r3.wwww, r0.xyzx, r17.xyzx
+                movc r5.xyz, r1.wwww, r5.xyzx, r16.xyzx
+                movc r0.xyz, r1.wwww, r0.xyzx, r17.xyzx
+                movc r4.xyz, r4.wwww, r4.xyzx, r15.xyzx
+                movc r5.xyz, r4.wwww, r5.xyzx, r16.xyzx
+                movc r0.xyz, r4.wwww, r0.xyzx, r17.xyzx
                 
                 #line 73 "E:\FullSail Assignment\GFXProject\GFXPROJECT\DX11RenderApp\DX11RenderApp\FXs\Shaders.fx"
                 mov r4.xyz, r4.xyzx  // r4.x <- A.x; r4.y <- A.y; r4.z <- A.z
@@ -485,10 +495,12 @@ fxgroup
                 mul r1.xyz, r1.xyzx, r3.xyzx
                 add r0.xyz, r0.xyzx, r1.xyzx  // r0.x <- litColor.x; r0.y <- litColor.y; r0.z <- litColor.z
                 mul r0.w, r3.w, cb1[17].w  // r0.w <- litColor.w
+                
+                #line 92
                 mov o0.xyz, r0.xyzx
                 mov o0.w, r0.w
                 ret 
-                // Approximately 183 instruction slots used
+                // Approximately 193 instruction slots used
                             
             };
         }
@@ -705,7 +717,7 @@ fxgroup
                 dcl_input_ps linear v1.xyz
                 dcl_input_ps linear v2.xyz
                 dcl_output o0.xyzw
-                dcl_temps 17
+                dcl_temps 19
                 //
                 // Initial variable locations:
                 //   v0.x <- pin.pos_h.x; v0.y <- pin.pos_h.y; v0.z <- pin.pos_h.z; v0.w <- pin.pos_h.w; 
@@ -852,56 +864,63 @@ fxgroup
                 mov r6.xyz, cb0[11].xyzx
                 mov r7.xyz, cb0[12].xyzx
                 mov r8.xyz, cb0[13].xyzx
+                mov r9.xyz, cb0[14].xyzx
                 mov r0.w, cb0[11].w
                 mov r1.w, cb0[12].w
-                mov r9.xyz, cb1[16].xyzx
-                mov r10.xyz, cb1[17].xyzx
-                mov r11.xyz, cb1[18].xyzx
-                mov r12.xyz, v2.xyzx
+                mov r2.w, cb0[13].w
+                mov r10.xyz, cb1[16].xyzx
+                mov r11.xyz, cb1[17].xyzx
+                mov r12.xyz, cb1[18].xyzx
+                mov r13.xyz, v2.xyzx
                 mov r0.xyz, r0.xyzx
-                mov r13.xyz, v1.xyzx
+                mov r14.xyz, v1.xyzx
                 
                 #line 118 "E:\FullSail Assignment\GFXProject\GFXPROJECT\DX11RenderApp\DX11RenderApp\FXs\Lighting.fx"
-                itof r14.xyz, l(0, 0, 0, 0)  // r14.x <- ambient.x; r14.y <- ambient.y; r14.z <- ambient.z
-                itof r15.xyz, l(0, 0, 0, 0)  // r15.x <- diffuse.x; r15.y <- diffuse.y; r15.z <- diffuse.z
-                itof r16.xyz, l(0, 0, 0, 0)  // r16.x <- specular.x; r16.y <- specular.y; r16.z <- specular.z
-                mov r13.xyz, -r13.xyzx
-                add r7.xyz, r7.xyzx, r13.xyzx  // r7.x <- toLight.x; r7.y <- toLight.y; r7.z <- toLight.z
-                dp3 r2.w, r7.xyzx, r7.xyzx
-                sqrt r2.w, r2.w  // r2.w <- distance
-                div r7.xyz, r7.xyzx, r2.wwww
-                mov r13.xyz, -r7.xyzx
-                dp3 r3.w, r13.xyzx, r8.xyzx
+                itof r15.xyz, l(0, 0, 0, 0)  // r15.x <- ambient.x; r15.y <- ambient.y; r15.z <- ambient.z
+                itof r16.xyz, l(0, 0, 0, 0)  // r16.x <- diffuse.x; r16.y <- diffuse.y; r16.z <- diffuse.z
+                itof r17.xyz, l(0, 0, 0, 0)  // r17.x <- specular.x; r17.y <- specular.y; r17.z <- specular.z
+                mov r14.xyz, -r14.xyzx
+                add r7.xyz, r7.xyzx, r14.xyzx  // r7.x <- toLight.x; r7.y <- toLight.y; r7.z <- toLight.z
+                dp3 r3.w, r7.xyzx, r7.xyzx
+                sqrt r14.y, r3.w  // r14.y <- distance
+                div r7.xyz, r7.xyzx, r14.yyyy
+                mov r18.xyz, -r7.xyzx
+                dp3 r3.w, r18.xyzx, r8.xyzx
                 itof r4.w, l(0)
                 max r3.w, r3.w, r4.w  // r3.w <- k_spot
                 
                 #line 129
                 itof r4.w, l(0)
-                ne r3.w, r3.w, r4.w
-                mov r4.w, l(1.000000)  // r4.w <- k_spot
+                ne r4.w, r3.w, r4.w
+                log r3.w, r3.w
+                mul r2.w, r2.w, r3.w
+                exp r2.w, r2.w  // r2.w <- k_spot
                 
                 #line 134
-                mul r4.xyz, r4.xyzx, r4.wwww
-                mul r4.xyz, r9.xyzx, r4.xyzx  // r4.x <- ambient.x; r4.y <- ambient.y; r4.z <- ambient.z
+                mul r4.xyz, r4.xyzx, r2.wwww
+                mul r4.xyz, r10.xyzx, r4.xyzx  // r4.x <- ambient.x; r4.y <- ambient.y; r4.z <- ambient.z
                 
                 #line 137
-                lt r1.w, r2.w, r1.w
-                dp3 r2.w, r7.xyzx, r12.xyzx
-                itof r4.w, l(0)
-                max r2.w, r2.w, r4.w  // r2.w <- kd
+                lt r1.w, r14.y, r1.w
+                dp3 r2.w, r7.xyzx, r13.xyzx
+                itof r3.w, l(0)
+                max r2.w, r2.w, r3.w  // r2.w <- kd
                 
                 #line 142
-                itof r4.w, l(0)
-                ne r4.w, r2.w, r4.w
-                
-                #line 146
+                itof r3.w, l(0)
+                ne r3.w, r2.w, r3.w
+                mul r14.z, r14.y, r14.y
+                itof r14.x, l(1)
+                dp3 r5.w, r9.xyzx, r14.xyzx
+                div r5.w, l(1.000000), r5.w  // r5.w <- att
+                mul r2.w, r2.w, r5.w
                 mul r5.xyz, r5.xyzx, r2.wwww
-                mul r5.xyz, r10.xyzx, r5.xyzx  // r5.x <- diffuse.x; r5.y <- diffuse.y; r5.z <- diffuse.z
+                mul r5.xyz, r11.xyzx, r5.xyzx  // r5.x <- diffuse.x; r5.y <- diffuse.y; r5.z <- diffuse.z
                 mov r7.xyz, -r7.xyzx
-                dp3 r2.w, r7.xyzx, r12.xyzx
+                dp3 r2.w, r7.xyzx, r13.xyzx
                 add r2.w, r2.w, r2.w
                 mov r2.w, -r2.w
-                mul r8.xyz, r2.wwww, r12.xyzx
+                mul r8.xyz, r2.wwww, r13.xyzx
                 add r7.xyz, r7.xyzx, r8.xyzx  // r7.x <- r.x; r7.y <- r.y; r7.z <- r.z
                 dp3 r0.x, r7.xyzx, r0.xyzx
                 itof r0.y, l(0)
@@ -909,15 +928,18 @@ fxgroup
                 log r0.x, r0.x
                 mul r0.x, r0.x, r0.w
                 exp r0.x, r0.x  // r0.x <- ks
+                mul r0.x, r0.x, r5.w
                 mul r0.xyz, r6.xyzx, r0.xxxx
-                mul r0.xyz, r11.xyzx, r0.xyzx  // r0.x <- specular.x; r0.y <- specular.y; r0.z <- specular.z
-                movc r5.xyz, r4.wwww, r5.xyzx, r15.xyzx
-                movc r0.xyz, r4.wwww, r0.xyzx, r16.xyzx
-                movc r5.xyz, r1.wwww, r5.xyzx, r15.xyzx
-                movc r0.xyz, r1.wwww, r0.xyzx, r16.xyzx
-                movc r4.xyz, r3.wwww, r4.xyzx, r14.xyzx
-                movc r5.xyz, r3.wwww, r5.xyzx, r15.xyzx
-                movc r0.xyz, r3.wwww, r0.xyzx, r16.xyzx
+                mul r0.xyz, r12.xyzx, r0.xyzx  // r0.x <- specular.x; r0.y <- specular.y; r0.z <- specular.z
+                
+                #line 152
+                movc r5.xyz, r3.wwww, r5.xyzx, r16.xyzx
+                movc r0.xyz, r3.wwww, r0.xyzx, r17.xyzx
+                movc r5.xyz, r1.wwww, r5.xyzx, r16.xyzx
+                movc r0.xyz, r1.wwww, r0.xyzx, r17.xyzx
+                movc r4.xyz, r4.wwww, r4.xyzx, r15.xyzx
+                movc r5.xyz, r4.wwww, r5.xyzx, r16.xyzx
+                movc r0.xyz, r4.wwww, r0.xyzx, r17.xyzx
                 
                 #line 73 "E:\FullSail Assignment\GFXProject\GFXPROJECT\DX11RenderApp\DX11RenderApp\FXs\Shaders.fx"
                 mov r4.xyz, r4.xyzx  // r4.x <- A.x; r4.y <- A.y; r4.z <- A.z
@@ -933,10 +955,12 @@ fxgroup
                 mul r1.xyz, r1.xyzx, r3.xyzx
                 add r0.xyz, r0.xyzx, r1.xyzx  // r0.x <- litColor.x; r0.y <- litColor.y; r0.z <- litColor.z
                 mul r0.w, r3.w, cb1[17].w  // r0.w <- litColor.w
+                
+                #line 92
                 mov o0.xyz, r0.xyzx
                 mov o0.w, r0.w
                 ret 
-                // Approximately 183 instruction slots used
+                // Approximately 193 instruction slots used
                             
             };
         }

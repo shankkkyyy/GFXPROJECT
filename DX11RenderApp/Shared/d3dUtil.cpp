@@ -1,7 +1,28 @@
 #include "d3dUtil.h"
 
-void d3dHelper::LoadShaderByteCode()
+
+
+bool d3dHelper::LoadShaderByteCode(const wchar_t* _path, std::vector<char>& _byteCode)
 {
+	std::ifstream fin;
+	fin.open(_path, std::ios_base::binary);
+	_byteCode.clear();
+	if (fin.is_open())
+	{
+		fin.seekg(0, std::ios_base::end);
+		unsigned byteSize = (unsigned)fin.tellg();
+		fin.seekg(0, std::ios_base::beg);
+		_byteCode. resize(byteSize);
+		fin.read(_byteCode.data(), byteSize);
+		fin.close();
+		return true;
+	}
+	else
+	{
+		std::wstring msg = L"Can not open file at: " + TextHelper::ToString(_path);
+		MessageBox(0, msg.c_str(), 0, 0);
+		return false;
+	}
 }
 
 void d3dHelper::ForwardVector(XMFLOAT3 & _val)

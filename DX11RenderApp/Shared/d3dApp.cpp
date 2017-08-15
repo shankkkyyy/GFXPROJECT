@@ -260,7 +260,7 @@ LRESULT D3DApp::MsgProc(HWND _hwnd, UINT _msg, WPARAM _wParam, LPARAM _lParam)
 	}
 	case WM_KEYDOWN:
 	{
-		mWndInput.key = _wParam;
+		mWndInput.key = (WORD)_wParam;
 		OnKeyDown();
 		return 0;
 	}
@@ -412,6 +412,31 @@ bool D3DApp::InitDirect3D()
 
 #pragma endregion
 
+#pragma region Create Rasterization State
+
+
+	// Default
+	D3D11_RASTERIZER_DESC rd;
+	rd.FillMode = D3D11_FILL_SOLID;
+	rd.CullMode = D3D11_CULL_BACK;
+	rd.FrontCounterClockwise = false;
+	rd.DepthBias = 0;
+	rd.SlopeScaledDepthBias = 0.0f;
+	rd.DepthBiasClamp = 0.0f;
+	rd.DepthClipEnable = true;
+	rd.ScissorEnable = false;
+	rd.MultisampleEnable = false;
+	rd.AntialiasedLineEnable = false;
+
+	HR(md3dDevice->CreateRasterizerState(&rd, mRSDef.GetAddressOf()));
+
+	rd.FrontCounterClockwise = true;
+	HR(md3dDevice->CreateRasterizerState(&rd, mRSBackFCC.GetAddressOf()));
+	
+
+#pragma endregion
+
+
 	return true;
 }
 
@@ -546,7 +571,7 @@ void D3DApp::CalculateAspectRatio()
 
 void D3DApp::FetchWndInputOnMouse(WPARAM _wParam, LPARAM _lParam)
 {
-	mWndInput.mButton = _wParam;
+	mWndInput.mButton = (WORD)_wParam;
 	mWndInput.cursorPos_curr.x = GET_X_LPARAM(_lParam);
 	mWndInput.cursorPos_curr.y = GET_Y_LPARAM(_lParam);
 	mWndInput.deltaXY.x = mWndInput.cursorPos_curr.x - mWndInput.cursorPos_pre.x;
