@@ -13,40 +13,51 @@ struct Mesh
 class Object
 {
 public:
+
 	Object();
+
 	virtual ~Object();
-public:
-	XMFLOAT3 mPos;
-	XMFLOAT3 mUp;
-	XMFLOAT3 mRight;
-	XMFLOAT3 mForward;
-
-	XMFLOAT4X4 mTexTransform;
-
-	XMFLOAT4X4 mWorld;
 
 protected:
 
-	Mesh* mMesh = nullptr;
-	Material* mMaterial = nullptr;
+	bool bWorldMatrixIsChanged = false;
+	UINT mIndexOffset = 0;
+	UINT mVertexOffset = 0;
 
-private:
-	ID3D11Buffer* mVB;
-	ID3D11Buffer* mIB;
-	ID3D11ShaderResourceView* mTexMap;
+
+	Mesh*                     mMesh = nullptr;
+	ID3D11ShaderResourceView* mTexMap = nullptr;
+
+	PSCBPerObj mToVRAM_PS;
+	VSCBPerObj mToVRAM_VS;
 
 public:
 
+	void SortIndex(UINT _indexOffset, UINT _vertexOffset);
+
 	void Edit(Mesh* _mesh, Material* _material, ID3D11ShaderResourceView* _mTexMap);
 
-	void BuildVIBuffer(ID3D11Device* const _d3dDevice, D3D11_BUFFER_DESC& _vbd, D3D11_BUFFER_DESC& _ibd, D3D11_SUBRESOURCE_DATA& _initData);
-
-	void SetPosition(const XMFLOAT3& _pos);
-
 	void Update(float _deltaTime);
-	//void Draw(ID3D11DeviceContext* const _d3dImmediateContext, 
-	//	UINT& _stride, UINT& _offset, CXMMATRIX _viewProj, UINT passIndex);
 
+	void Draw(ID3D11DeviceContext* devContext, ID3D11Buffer* _VSCB, ID3D11Buffer* _PSCB, const class Camera* const _mCam);
+
+
+
+public:
+
+	bool IsTransparent() const;
+	const Mesh* const GetMesh() const;
+
+
+	void SetDiffuseColor(const FLOAT* _color, float _alpha = 1.0f);
+	void SetDiffuseAlpha(float _val);
+	void SetTransparent(bool _val);
+	void SetScale(const XMFLOAT3& _xyz);
+	void SetPosition(const XMFLOAT3 & _pos);
+	void SetTexTransform(float _x, float _y);
+	void SetWorldMatrix(CXMMATRIX _matrix);
+
+	XMMATRIX GetWorldMatrixXM() const;;
 };
 
 class Objects
@@ -60,27 +71,34 @@ public:
 	static Mesh* GetTestCubeMesh();
 	static Mesh* GetCarMesh();
 	static Mesh* GetDefaultCubeMesh();
+	static Mesh* GetDefaultPlaneMesh();
 
 
 	static Material* GetDefMaterial();
 
 	static ID3D11ShaderResourceView* GetCarTexture();
 	static ID3D11ShaderResourceView* GetGrassTexture();
-
-
 	static ID3D11ShaderResourceView* GetSkyTexuture();
+	static ID3D11ShaderResourceView* GetFloorTexture();
+	static ID3D11ShaderResourceView* GetWallTexture();
+	static ID3D11ShaderResourceView* GetIceTexture();
+
 
 private:
+
 	static Mesh*                     testCube_mesh;
 	static Mesh*                     car_mesh;
 	static Mesh*                     defCube_mesh;
+	static Mesh*                     defPlane_mesh;
 
 	static Material* def_material;
 
-	static ID3D11ShaderResourceView* car_texture;
-	static ID3D11ShaderResourceView* grass_texture;
-
+	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> car_texture;
+	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> grass_texture;
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sky_texture;
+	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> floor_texture;
+	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> wall_texture;
+	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ice_texture;
 
 
 public:

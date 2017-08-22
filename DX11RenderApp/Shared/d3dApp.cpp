@@ -412,30 +412,15 @@ bool D3DApp::InitDirect3D()
 
 #pragma endregion
 
-#pragma region Create Rasterization State
 
 
-	// Default
-	D3D11_RASTERIZER_DESC rd;
-	rd.FillMode = D3D11_FILL_SOLID;
-	rd.CullMode = D3D11_CULL_BACK;
-	rd.FrontCounterClockwise = false;
-	rd.DepthBias = 0;
-	rd.SlopeScaledDepthBias = 0.0f;
-	rd.DepthBiasClamp = 0.0f;
-	rd.DepthClipEnable = true;
-	rd.ScissorEnable = false;
-	rd.MultisampleEnable = false;
-	rd.AntialiasedLineEnable = false;
+	CreateRasterizationStates();
 
-	HR(md3dDevice->CreateRasterizerState(&rd, mRSDef.GetAddressOf()));
+	CreateSamplerStates();
 
-	rd.FrontCounterClockwise = true;
-	HR(md3dDevice->CreateRasterizerState(&rd, mRSBackFCC.GetAddressOf()));
-	
+	CreateDepthStencilStates();
 
-#pragma endregion
-
+	CreateBlendStates();
 
 	return true;
 }
@@ -562,6 +547,160 @@ void D3DApp::OnKeyDown()
 const WndInput* const D3DApp::GetWndInput() const
 {
 	return &mWndInput;
+}
+
+void D3DApp::CreateRasterizationStates()
+{
+	// Default
+	D3D11_RASTERIZER_DESC rd;
+	rd.FillMode = D3D11_FILL_SOLID;
+	rd.CullMode = D3D11_CULL_NONE;
+	rd.FrontCounterClockwise = false;
+	rd.DepthBias = 0;
+	rd.SlopeScaledDepthBias = 0.0f;
+	rd.DepthBiasClamp = 0.0f;
+	rd.DepthClipEnable = true;
+	rd.ScissorEnable = false;
+	rd.MultisampleEnable = false;
+	rd.AntialiasedLineEnable = false;
+
+	HR(md3dDevice->CreateRasterizerState(&rd, mRSNoCull.GetAddressOf()));
+
+	rd.CullMode = D3D11_CULL_FRONT;
+	HR(md3dDevice->CreateRasterizerState(&rd, mRSFrontCull.GetAddressOf()));
+}
+
+void D3DApp::CreateSamplerStates()
+{
+	D3D11_SAMPLER_DESC sd;
+	ZeroMemory(&sd, sizeof(sd));
+	sd.Filter = D3D11_FILTER_ANISOTROPIC;
+	sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sd.MipLODBias = 0.0f;
+	sd.MaxAnisotropy = 4;
+
+	HR(md3dDevice->CreateSamplerState(&sd, mSS4xAnisotropyWRAP.GetAddressOf()));
+}
+
+void D3DApp::CreateDepthStencilStates()
+{
+	D3D11_DEPTH_STENCIL_DESC dsd;
+
+	dsd.DepthEnable = true;
+	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsd.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	dsd.StencilEnable = false;
+	dsd.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	dsd.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+	dsd.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	dsd.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+
+	dsd.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	dsd.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+
+	HR(md3dDevice->CreateDepthStencilState(&dsd, mDSLessEqual.GetAddressOf()));
+
+
+#pragma region Reflection
+	dsd.DepthEnable = true;
+	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsd.DepthFunc      = D3D11_COMPARISON_LESS;
+	dsd.StencilEnable = true;
+	dsd.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	dsd.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+	dsd.FrontFace.StencilFunc = D3D11_COMPARISON_EQUAL;
+	dsd.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+
+	dsd.BackFace.StencilFunc = D3D11_COMPARISON_EQUAL;
+	dsd.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+
+	HR(md3dDevice->CreateDepthStencilState(&dsd, mDSReflection.GetAddressOf()));
+#pragma endregion
+
+#pragma region 	Marker
+	dsd.DepthEnable = true;
+	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	dsd.DepthFunc = D3D11_COMPARISON_LESS;
+	dsd.StencilEnable = true;
+	dsd.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	dsd.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+	dsd.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	dsd.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+
+	dsd.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	dsd.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+
+	HR(md3dDevice->CreateDepthStencilState(&dsd, mDSStencilMark.GetAddressOf()));
+
+
+#pragma endregion
+
+#pragma region no Double Blending
+	dsd.DepthEnable = true;
+	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsd.DepthFunc = D3D11_COMPARISON_LESS;
+	dsd.StencilEnable = true;
+	dsd.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	dsd.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+	dsd.FrontFace.StencilFunc        = D3D11_COMPARISON_EQUAL;
+	dsd.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilFailOp      = D3D11_STENCIL_OP_KEEP;
+	dsd.FrontFace.StencilPassOp      = D3D11_STENCIL_OP_INCR;
+
+	dsd.BackFace.StencilFunc        = D3D11_COMPARISON_EQUAL;
+	dsd.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilFailOp      = D3D11_STENCIL_OP_KEEP;
+	dsd.BackFace.StencilPassOp      = D3D11_STENCIL_OP_INCR;
+
+	HR(md3dDevice->CreateDepthStencilState(&dsd, mDSNoDoubleBlend.GetAddressOf()));
+#pragma endregion
+}
+
+void D3DApp::CreateBlendStates()
+{
+	D3D11_BLEND_DESC bsd;
+	ZeroMemory(&bsd, sizeof(D3D11_BLEND_DESC));
+
+	// mBSTransparent
+	bsd.AlphaToCoverageEnable = false;
+	bsd.IndependentBlendEnable = false;
+	bsd.RenderTarget[0].BlendEnable = true;
+	bsd.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	bsd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	bsd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	bsd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	bsd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	bsd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	bsd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	HR(md3dDevice->CreateBlendState(&bsd, mBSTransparent.GetAddressOf()));
+
+	// mBSNoRenderTargetWrite
+	bsd.RenderTarget[0].BlendEnable = false;
+	bsd.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	bsd.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
+	bsd.RenderTarget[0].RenderTargetWriteMask = 0;
+
+	HR(md3dDevice->CreateBlendState(&bsd, mBSNoRenderTargetWrite.GetAddressOf()));
+
 }
 
 void D3DApp::CalculateAspectRatio()

@@ -1,16 +1,7 @@
 
 
 
-#include "ShaderHeaders.hlsli"
-
-cbuffer cbPerObject : register(b1)
-{
-    float4x4 objWorldViewProject;
-    float4x4 objWorld;
-    float4x4 objInvTranspose;
-    float4x4 objTexTransform;
-}
-
+#include "Resource.hlsli"
 
 VertexOut main( VertexIn vin) 
 {

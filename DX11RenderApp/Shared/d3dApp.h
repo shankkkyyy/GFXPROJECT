@@ -17,10 +17,6 @@ struct WndInput
 
 
 
-
-
-
-
 class D3DApp
 {
 
@@ -53,9 +49,6 @@ protected:
 	bool  InitDirect3D();
 	void  CalculateFrameRate();
 
-
-
-	
 	// Resize swapChain, recreate RTV and SDV
 	virtual void OnResize();
 	virtual void UpdateScene(float _deltaTime) = 0;
@@ -101,12 +94,18 @@ protected:
 	ID3D11RenderTargetView* md3dRTV;
 	ID3D11DepthStencilView* md3dDSV;
 
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> mRSBackFCC = nullptr;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState>
-		mRSDef = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState>   mRSFrontCull           = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState>   mRSNoCull              = nullptr;
+																	       
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDSLessEqual           = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDSStencilMark         = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDSReflection          = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDSNoDoubleBlend       = nullptr;
+																	       
+	Microsoft::WRL::ComPtr<ID3D11BlendState>        mBSTransparent         = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11BlendState>        mBSNoRenderTargetWrite = nullptr;
 
-
-
+	Microsoft::WRL::ComPtr<ID3D11SamplerState>      mSS4xAnisotropyWRAP    = nullptr;
 
 	D3D11_VIEWPORT          mScreenViewPort;
 
@@ -119,7 +118,16 @@ protected:
 
 private:
 
+	void CreateRasterizationStates();
+
+	void CreateSamplerStates();
+
+	void CreateDepthStencilStates();
+
+	void CreateBlendStates();
+
 	void CalculateAspectRatio();
+
 
 	void FetchWndInputOnMouse(WPARAM _wParam, LPARAM _lParam);
 

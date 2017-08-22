@@ -1,36 +1,8 @@
 #pragma once
 
 #include "SceneRenderApp.h"
+#include "Shader.h"
 #include "Object.h"
-
-
-struct VSCBPerFrame
-{
-	XMFLOAT4X4 camWVP;
-};
-
-struct VSCBPerObj
-{
-	XMFLOAT4X4 wvp;
-	XMFLOAT4X4 world;
-	XMFLOAT4X4 worldInvTranspose;
-	XMFLOAT4X4 texTransform;
-};
-
-
-struct PSCBPerFrame
-{
-	XMFLOAT3  eyePosition; //3
-	float     pad;
-	Light     light; //4
-	XMFLOAT4  ambientLight;
-};
-
-struct PSCBPerObj
-{
-	Material material; // 4
-};
-
 
 
 class Scene : public SceneRender
@@ -43,82 +15,48 @@ public:
 
 private:
 
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mVB           = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mIB 		   = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerFrame_VS = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerObj_VS   = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerFrame_PS = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerObj_PS   = nullptr;
 
-#pragma region  Objects
-	ID3D11Buffer* mVB;
-	ID3D11Buffer* mIB;
-	ID3D11Buffer* mCBVSPerFrame;
-	ID3D11Buffer* mCBVSPerObj;
-	ID3D11Buffer* mCBPSPerFrame;
-	ID3D11Buffer* mCBPSPerObj;
-
-
-	ID3D11VertexShader* mVS;
-	ID3D11PixelShader*  mPS;
-
-	ID3D11InputLayout* mIL;
-	ID3D11SamplerState* mSS;
-
-	Mesh* mMeshToDraw;
-
-	Light mDirLight;
-
-	UINT mIndexToDraw;
-
+	Shader* mShaders = nullptr;
 	Objects mAssetsPool;
 
-	VSCBPerFrame mVSPerFrame;
+	VSCBPerFrame mToVRAMPerFrame_VS;
+	PSCBPerFrame mToVRAMPerFrame_PS;
 
-	VSCBPerObj mVSPerObj;
+	class SkyBox*        mSkyBox = nullptr;
 
-	PSCBPerFrame mPSPerFrame;
+	std::vector<Object>* mObjects;
 
-	PSCBPerObj mPSPerObj;
-
-	int speedDir = 1;;
-
-
-#pragma endregion
-
-
-
-
-#pragma region For Sky Box
-
-	Microsoft::WRL::ComPtr<ID3D11Buffer> skyVB = nullptr;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> skyIB = nullptr;
-
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS = nullptr;
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS = nullptr;
-
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> skyMap = nullptr;
-
-	Microsoft::WRL::ComPtr<ID3D11InputLayout> skyIL = nullptr;
-
-	UINT skyIndexSize = 0;
-
-#pragma endregion
-
+	UINT* mOpaqueIndices = nullptr;
+	UINT* mTransparentIndices = nullptr;
+	UINT mOpagueAmount = 0;
+	UINT mTransparentAmount = 0;
 
 
 private:
 
-	void BuildSkyBoxGeometry();
-
-	void LoadSkyBoxShaderAndCreateInputLayout();
-
-	void DrawSkyBox();
-
-	void BuildGeometryBuffer();
 
 	void CreateConstantBuffer();
 
-	void CreateShaders();
+	// assign mesh, texture and material
+	void ObjInitAndEdit();
 
-	void CreateSampleState();
+	// build the geometry according to the objs to draw
+	void BuildGeometry();
 
-	void DrawScene() override;
-	
+	void DrawScene() override;	
+
+	void DrawOpaques();
+
+	void DrawSkyBox();
+
+	void DrawTransparents();
+
 };
 
 

@@ -69,6 +69,12 @@
     <ClCompile Include="Scene.cpp">
       <Filter>Apps</Filter>
     </ClCompile>
+    <ClCompile Include="Shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SkyBox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Shared\d3dApp.h">
@@ -113,6 +119,12 @@
     <ClInclude Include="Scene.h">
       <Filter>Apps</Filter>
     </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SkyBox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\VertexShader.hlsl">
@@ -127,9 +139,18 @@
     <FxCompile Include="Shaders\SkyBoxVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\PSShadow.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\ShaderHeaders.hlsli">
+    <None Include="Shaders\Functions.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Definition.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Resource.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

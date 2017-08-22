@@ -103,6 +103,7 @@ public:
 class d3dHelper
 {
 public:
+
 	static bool LoadShaderByteCode(const wchar_t* _path, std::vector<char>& _byteCode);
 	static void ForwardVector(XMFLOAT3& _val);
 	static void RightVector(XMFLOAT3& _val);
@@ -110,6 +111,45 @@ public:
 };
 
 
+
+#pragma region From CPU to GPU
+
+
+struct VSCBPerFrame
+{
+	XMFLOAT4X4 camPosTransform;
+};
+
+
+struct PSCBPerFrame
+{
+	XMFLOAT3  eyePosition; 
+	float     fogRange; //16
+	XMFLOAT3  fogColor;
+	float     fogStart; //32
+	Light     light[3];    //32 + 48 * 3 = 176
+	XMFLOAT4  ambientLight; //192
+};
+
+
+
+struct VSCBPerObj
+{
+	XMFLOAT4X4 wvp;
+	XMFLOAT4X4 world;
+	XMFLOAT4X4 worldInvTranspose;
+	XMFLOAT4X4 texTransform;
+};
+
+struct PSCBPerObj
+{
+	Material   material; // 4
+	XMINT4     renderSetting; // x: has diffuse tex, y: isTransparent
+};
+
+
+
+#pragma endregion
 
 
 

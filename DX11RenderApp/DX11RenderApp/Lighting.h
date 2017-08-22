@@ -18,7 +18,7 @@ struct Light
 	DirectX::XMFLOAT3 direction;
 	float fallOffend;
 	DirectX::XMFLOAT3 position;
-	float spotAngle;
+	float spotAngle; //48
 };
 
 

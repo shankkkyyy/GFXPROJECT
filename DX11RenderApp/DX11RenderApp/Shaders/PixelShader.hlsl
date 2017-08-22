@@ -1,47 +1,45 @@
-#include "ShaderHeaders.hlsli"
-
-cbuffer perFrame : register(b0)
-{
-    float3 gEyePosition;
-    float pad;
-
-    Light  gLight;
-    float4 gAmbientLight;
-
-}
-
-cbuffer perObject : register(b1)
-{
-    Material objMaterial;
-}
 
 
-
+#include "Functions.hlsli"
 
 // r, g, b, a
-float4 main(VertexOut pin) : SV_TARGET
+float4 main(VertexOut pin)  : SV_TARGET
 {
 
-    // Get diffuse texture color 
-    float4 diffuseAlbedo = diffuseMap.Sample(ss, pin.uv_w);
-
-    // create material based on diffuse texture
-    Material mat = { diffuseAlbedo, objMaterial.fresenlR0, objMaterial.shininess };
+    Material mat;
+    // no diffuse map, then use material diffuse color
+    [flatten]
+    if (objRenderSetting.x == 0)
+    {
+        mat.diffuseAlbedo = objMaterial.diffuseAlbedo;
+        mat.shininess = objMaterial.shininess;
+        mat.fresenlR0 = objMaterial.fresenlR0;
+    }
+    else
+    {
+        // Get diffuse texture color 
+        float4 diffuseAlbedo = diffuseMap.Sample(ss, pin.uv_w);
+        mat.diffuseAlbedo.rgb = diffuseAlbedo.rgb;
+        mat.shininess = objMaterial.shininess;
+        mat.fresenlR0 = objMaterial.fresenlR0;
+    }
 
     // get eye position for lighting
     float3 toEye = gEyePosition - pin.pos_w;
-    toEye = normalize(toEye);
+    float toEyeDistance = length(toEye);
+    toEye /= toEyeDistance;
 
     // calculate light
-    float3 ambLightColor = (gAmbientLight * objMaterial.diffuseAlbedo).rgb;
-    float3 dirLightColor = ComputeDirectionalLight(gLight, mat, pin.nor_w, toEye);
-    //float3 pointLightColor = ComputePointLight(gLight, objMaterial, pin.nor_w, pin.pos_w);
-    //float3 spotLight = ComputeSpotLight(gLight, objMaterial, pin.nor_w, pin.pos_w);
+    float3 ambLightColor = (gAmbientLight * mat.diffuseAlbedo).rgb;
+    float3 dirLightColor = ComputeDirectionalLight(gLight[0], mat, pin.nor_w, toEye);
+    float3 pointLightColor = ComputePointLight(gLight[1], objMaterial, pin.nor_w, pin.pos_w);
+    float3 spotLight = ComputeSpotLight(gLight[2], objMaterial, pin.nor_w, pin.pos_w);
 
 
-    float4 colorOut;
-    colorOut.a = objMaterial.diffuseAlbedo.a;
 
-    colorOut.rgb = dirLightColor + ambLightColor;
-    return colorOut;
+    float4 litColor;
+    litColor.rgb = dirLightColor + ambLightColor + pointLightColor + spotLight;
+    //litColor.rgb = FogEffect(litColor.rgb, toEyeDistance);
+    litColor.a = mat.diffuseAlbedo.a;
+    return litColor;
 }

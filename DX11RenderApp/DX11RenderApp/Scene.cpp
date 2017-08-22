@@ -1,100 +1,46 @@
 #include "Scene.h"
+#include "SkyBox.h"
 
 
 Scene::Scene(HINSTANCE _hInstance) : 
-	SceneRender(_hInstance), 
-	mVB(nullptr),
-	mIB(nullptr),
-	mCBVSPerFrame(nullptr),
-	mCBVSPerObj(nullptr),
-	mCBPSPerFrame(nullptr),
-	mCBPSPerObj(nullptr),
-	mVS(nullptr),
-	mPS(nullptr),
-	mIL(nullptr),
-	mSS(nullptr),
-	mIndexToDraw(0)
+	SceneRender(_hInstance) 
 {
 	mClientWidth = 1280;
 	mClientHeight = 960;
-	mMainWndCaption = L"Scene_0";		
+	mMainWndCaption = L"Scene_0";	
+
+	mShaders = new Shader();
+	mObjects = new std::vector<Object>();
+	mSkyBox = new SkyBox();
 }
 
 Scene::~Scene()
 {
-	ReleaseCOM(mVB);
-	ReleaseCOM(mIB);
-	ReleaseCOM(mCBVSPerFrame);
-	ReleaseCOM(mCBVSPerObj);
-	ReleaseCOM(mCBPSPerFrame);
-	ReleaseCOM(mCBPSPerObj);
-	ReleaseCOM(mPS);
-	ReleaseCOM(mVS);
-	ReleaseCOM(mIL);
-	ReleaseCOM(mSS);
+	delete mShaders;
+	delete mObjects;
+	delete mSkyBox;
+	delete mOpaqueIndices;
+	delete mTransparentIndices;
 }
 
 bool Scene::InitApp()
 {
 	if (SceneRender::InitApp())
 	{
-		// Load Models
+		// Load Models and texture
 		Objects::LoadAssets(md3dDevice);
 
+		// Load shaders and create input layout
+		mShaders->LoadShaders(md3dDevice);
 
-		BuildGeometryBuffer();
-
+		// create constant buffer
 		CreateConstantBuffer();
 
-		// Load Shaders and Create Input Layout
-		CreateShaders();
+		// ObjEdit&Init
+		ObjInitAndEdit();
 
-		CreateSampleState();
-
-		BuildSkyBoxGeometry();
-
-		LoadSkyBoxShaderAndCreateInputLayout();
-
-
-
-
-#pragma region Objs Init
-		// init texture transform
-		ZeroMemory(&mVSPerObj, sizeof(mVSPerObj));
-
-		XMStoreFloat4x4(&mVSPerObj.texTransform, XMMatrixIdentity()); //(1, 1)
-		mVSPerObj.texTransform(0, 0) = 5;
-		mVSPerObj.texTransform(1, 1) = 5;
-
-
-
-		// init lighting
-		ZeroMemory(&mPSPerFrame, sizeof(mPSPerFrame));
-		mPSPerFrame.eyePosition = GetMainCamera()->GetPosition();
-		mPSPerFrame.ambientLight = { 0.3f, 0.3f, 0.3f, 1.0f };
-
-		mPSPerFrame.light.lightColor = { .8f, .8f, .8f };
-		mPSPerFrame.light.direction = { 1, -1, 0 };
-		XMStoreFloat3(&mPSPerFrame.light.direction,
-			XMVector3Normalize(MathHelper::XMFloat3ToXMVector(mPSPerFrame.light.direction)));
-
-		mPSPerFrame.light.position = { -5.0f, 5.0f, 0 };
-		mPSPerFrame.light.fallOffStart = 0;
-		mPSPerFrame.light.fallOffend = 20;
-		mPSPerFrame.light.spotAngle = 0.7f;
-
-		// init Material
-		ZeroMemory(&mPSPerObj, sizeof(mPSPerObj));
-		mPSPerObj.material.diffuseAlbedo = { 0.5f,  0.5f,  0.5f, 1.0f };
-		mPSPerObj.material.fresnelR0 = { 0.95f, 0.93f,0.88f };//sliver
-		mPSPerObj.material.shininess = 10.0f;
-
-		GetMainCamera()->SetPosition(XMFLOAT3(0, 10, -20));
-		//GetMainCamera()->LookRight(-1.57f);
-#pragma endregion
-
-
-
+		// build Geometry and push data into VRAM throught VB && IB buffer
+		BuildGeometry();
 		return true;
 	}
 	else
@@ -103,117 +49,203 @@ bool Scene::InitApp()
 	}
 }
 
-void Scene::BuildSkyBoxGeometry()
+void Scene::ObjInitAndEdit()
 {
-	Mesh* mesh = Objects::GetDefaultCubeMesh();
+
+#pragma region Scene Setup
+
+	GetMainCamera()->SetPosition(XMFLOAT3(0, 5, -50));
+
+	mObjects->resize(4);
+
+	// Surface
+	(*mObjects)[0].Edit(Objects::GetDefaultPlaneMesh(), nullptr, Objects::GetFloorTexture());
+	(*mObjects)[0].SetPosition(XMFLOAT3(0, -0.01f, 10));
+	(*mObjects)[0].SetScale(XMFLOAT3(200, 0.25f, 200));
+	(*mObjects)[0].SetTexTransform(5, 5);
+
+	// Car
+	(*mObjects)[1].Edit(Objects::GetCarMesh(), nullptr, Objects::GetCarTexture());
+	(*mObjects)[1].SetPosition(XMFLOAT3(0, 0, 15));
+
+	// transparent cube
+	(*mObjects)[2].Edit(Objects::GetDefaultCubeMesh(), nullptr, nullptr);
+	(*mObjects)[2].SetPosition(XMFLOAT3(0, 5, -15));
+	(*mObjects)[2].SetScale(XMFLOAT3(10, 10, 1));
+	(*mObjects)[2].SetDiffuseColor(DirectX::Colors::Cyan, 0.3f);
+	(*mObjects)[2].SetTransparent(true);
+
+	(*mObjects)[3].Edit(Objects::GetDefaultCubeMesh(), nullptr, Objects::GetIceTexture());
+	(*mObjects)[3].SetPosition(XMFLOAT3(-15 , 7.5f, 15));
+	(*mObjects)[3].SetScale(XMFLOAT3(1, 15, 25));
+	(*mObjects)[3].SetTexTransform(3, 2);
+	(*mObjects)[3].SetDiffuseAlpha(0.5f);
+	(*mObjects)[3].SetTransparent(true);
+
+
+
+#pragma endregion
+
+#pragma region  Grouping the obj by transparency
+	bool IsTransparent = false;
+	for (size_t iObj = 0; iObj < mObjects->size(); iObj++)
+	{
+		IsTransparent = (*mObjects)[iObj].IsTransparent();
+		if (IsTransparent)
+			mTransparentAmount++;
+		else
+			mOpagueAmount++;
+	}
+
+	mOpaqueIndices = new UINT[mOpagueAmount];
+	mTransparentIndices = new UINT[mTransparentAmount];
+
+	mOpagueAmount = 0;
+	mTransparentAmount = 0;
+
+	for (size_t iObj = 0; iObj < mObjects->size(); iObj++)
+	{
+		IsTransparent = (*mObjects)[iObj].IsTransparent();
+		if (IsTransparent)
+		{
+			mTransparentIndices[mTransparentAmount] = (UINT)iObj;
+			mTransparentAmount++;
+		}
+		else
+		{
+			mOpaqueIndices[mOpagueAmount] = (UINT)iObj;
+			mOpagueAmount++;
+		}
+	}
+
+#pragma endregion
+
+	// sky Box
+	mSkyBox->
+		Edit(mShaders->GetSkyVS(), mShaders->GetSkyPS(), Objects::GetSkyTexuture(), mShaders->GetPosIL(), md3dDevice);
+
+
+#pragma region Objs Init
 	
-	UINT vertexAmount = (UINT)mesh->vertices.size();
+	// init lighting
+	ZeroMemory(&mToVRAMPerFrame_VS, sizeof(VSCBPerFrame));
+	mToVRAMPerFrame_PS.ambientLight = { 0.3f, 0.3f, 0.3f, 1.0f };
 
-	Vertex12* cube = new Vertex12[vertexAmount];
+	// Dir light
+	mToVRAMPerFrame_PS.light[0].lightColor = { .8f, .8f, .8f };
+	mToVRAMPerFrame_PS.light[0].direction = { 1, -1, 1};
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[0].direction,
+		XMVector3Normalize(MathHelper::XMFloat3ToXMVector(mToVRAMPerFrame_PS.light[0].direction)));
 
-	for (UINT i = 0; i < vertexAmount; i++)
-	{
-		cube[i].pos = mesh->vertices[i].pos;
-	}
+	// Point light 
+	mToVRAMPerFrame_PS.light[1].lightColor = XMFLOAT3((const float*)&Colors::Gold);;
+	mToVRAMPerFrame_PS.light[1].position = { 0.0f, 10.0f, 40.0f };
+	mToVRAMPerFrame_PS.light[1].fallOffStart = 0;
+	mToVRAMPerFrame_PS.light[1].fallOffend = 40;
 
-	D3D11_BUFFER_DESC sky_vbd;
-	sky_vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	sky_vbd.ByteWidth = vertexAmount * sizeof(Vertex12);
-	sky_vbd.Usage = D3D11_USAGE_IMMUTABLE;
-	sky_vbd.CPUAccessFlags = 0;
-	sky_vbd.MiscFlags = 0;
-	sky_vbd.StructureByteStride = 0;
+	// Spot light - 
+	mToVRAMPerFrame_PS.light[2].lightColor = XMFLOAT3((const float*)&Colors::DeepPink);
+	mToVRAMPerFrame_PS.light[2].direction = { -1, 0.3f, 1 };
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].direction,
+		XMVector3Normalize(MathHelper::XMFloat3ToXMVector(mToVRAMPerFrame_PS.light[2].direction)));
+	mToVRAMPerFrame_PS.light[2].position = { 18.0f, 1.0f, -18.0f };
+	mToVRAMPerFrame_PS.light[2].fallOffStart = 0;
+	mToVRAMPerFrame_PS.light[2].fallOffend = 40;
+	mToVRAMPerFrame_PS.light[2].spotAngle = 0.7f; //45
 
-	D3D11_SUBRESOURCE_DATA sky_initData;
-	ZeroMemory(&sky_initData, sizeof(sky_initData));
-	sky_initData.pSysMem = cube;
-
-	HR(md3dDevice->CreateBuffer(&sky_vbd, &sky_initData, skyVB.GetAddressOf()));
-
-
-	//
-	// Indices
-	skyIndexSize = (UINT)mesh->indices.size();
-	D3D11_BUFFER_DESC sky_ibd;
-	sky_ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	sky_ibd.ByteWidth = skyIndexSize * sizeof(UINT);
-	sky_ibd.Usage = D3D11_USAGE_IMMUTABLE;
-	sky_ibd.CPUAccessFlags = 0;
-	sky_ibd.MiscFlags = 0;
-	sky_ibd.StructureByteStride = 0;
-
-	ZeroMemory(&sky_initData, sizeof(sky_initData));
-	sky_initData.pSysMem = mesh->indices.data();
-
-	HR(md3dDevice->CreateBuffer(&sky_ibd, &sky_initData, skyIB.GetAddressOf()));
+	XMFLOAT4 fogColor = XMFLOAT4((const float*)(&DirectX::Colors::WhiteSmoke));
+	mToVRAMPerFrame_PS.fogColor = { fogColor.x, fogColor.y, fogColor.z };
+	mToVRAMPerFrame_PS.fogStart = 15.0f;
+	mToVRAMPerFrame_PS.fogRange = 50.0f;
 
 
+#pragma endregion
 
-	delete cube;
 }
 
-void Scene::LoadSkyBoxShaderAndCreateInputLayout()
+void Scene::BuildGeometry()
 {
-	std::vector<char> shaderByteCode;
-	d3dHelper::LoadShaderByteCode(L"Shaders/SkyBoxVS.cso", shaderByteCode);
-	D3D11_INPUT_ELEMENT_DESC id[1] =
-	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 };
 
-	HR(md3dDevice->CreateInputLayout(id, _countof(id), shaderByteCode.data(), shaderByteCode.size(), &skyIL));
-	HR(md3dDevice->CreateVertexShader(shaderByteCode.data(), shaderByteCode.size(), nullptr, &skyVS));
+	// for Obj
+	UINT                   objVerticeSize = 0, objIndicesSize = 0;
+	D3D11_BUFFER_DESC      vbd, ibd;
+	D3D11_SUBRESOURCE_DATA initData;
+	size_t i = 0;
+	size_t vOffset = 0, iOffset = 0; 
 
-
-	d3dHelper::LoadShaderByteCode(L"Shaders/SkyBoxPS.cso", shaderByteCode);
-	HR(md3dDevice->CreatePixelShader(shaderByteCode.data(), shaderByteCode.size(), nullptr, &skyPS));
-}
-
-void Scene::BuildGeometryBuffer()
-{
-	mMeshToDraw = Objects::GetDefaultCubeMesh();
-
-	Vertex* vertices = new Vertex[mMeshToDraw->vertices.size()];
-
-
-	for (unsigned i = 0; i < mMeshToDraw->vertices.size(); i++)
+#pragma region Gather all vertices and indices for scene objectes into to two separate array
+	// Get total unique vertex size, and indices size 
+	for (i = 0; i < mObjects->size(); i++)
 	{
-		vertices[i].pos = mMeshToDraw->vertices[i].pos;
-		vertices[i].nor = mMeshToDraw->vertices[i].nor;
-		vertices[i].uv  = mMeshToDraw->vertices[i].uv;
+		objVerticeSize += (UINT) (*mObjects)[i].GetMesh()->vertices.size();
+		objIndicesSize += (UINT)(*mObjects)[i].GetMesh()->indices.size();
 	}
 
-	D3D11_BUFFER_DESC _vbd, _ibd;
-	D3D11_SUBRESOURCE_DATA _initData;
+	// load all mesh into a vertex array
+	// load all indices into an indices array
 
-	ZeroMemory(&_vbd, sizeof(D3D11_BUFFER_DESC));
-	_vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	_vbd.ByteWidth = (UINT)mMeshToDraw->vertices.size() * sizeof(Vertex);
-	_vbd.Usage = D3D11_USAGE_IMMUTABLE;
-	_vbd.CPUAccessFlags = 0;
-	_vbd.MiscFlags = 0;
-	_vbd.StructureByteStride = 0;
+	UINT* objIndices = new UINT[objIndicesSize];
+	Vertex* objVertices = new Vertex[objVerticeSize];
 
-	ZeroMemory(&_initData, sizeof(D3D11_SUBRESOURCE_DATA));
+	for (i = 0; i < mObjects->size(); i++)
+	{
+		size_t vlength = (*mObjects)[i].GetMesh()->vertices.size();
+		for (size_t iV = 0; iV < vlength; iV++)
+		{
+			objVertices[iV + vOffset] = (*mObjects)[i].GetMesh()->vertices[iV];
+		}
+
+
+		// reset length to indices size
+		size_t ilength = (*mObjects)[i].GetMesh()->indices.size();
+		for (size_t iI = 0; iI < ilength; iI++)
+		{
+			objIndices[iI + iOffset] = (*mObjects)[i].GetMesh()->indices[iI];
+		}
+
+		// get the Index && vertex offset for index draw within one buffer
+		(*mObjects)[i].SortIndex((UINT)iOffset,(UINT)vOffset);
+
+		// update offset
+		vOffset += vlength;
+		iOffset += ilength;
+	}
+
+#pragma endregion
+
+#pragma region Create Buffer and push data into VB and IB
+	// VB
+	ZeroMemory(&vbd, sizeof(D3D11_BUFFER_DESC));
+	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbd.ByteWidth = objVerticeSize * sizeof(Vertex);
+	vbd.Usage = D3D11_USAGE_IMMUTABLE;
+	vbd.CPUAccessFlags = 0;
+	vbd.MiscFlags = 0;
+	vbd.StructureByteStride = 0;
+
+	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
 	//_initData.pSysMem = mMeshToDraw->vertices.data();
-	_initData.pSysMem = vertices;
+	initData.pSysMem = objVertices;
 
-	HR(md3dDevice->CreateBuffer(&_vbd, &_initData, &mVB));
+	HR(md3dDevice->CreateBuffer(&vbd, &initData, mVB.GetAddressOf()));
 
-	delete[] vertices;
 
 	// IB:
-	ZeroMemory(&_ibd, sizeof(D3D11_BUFFER_DESC));
-	_ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	_ibd.ByteWidth = (UINT)mMeshToDraw->indices.size() * sizeof(UINT);
-	_ibd.Usage = D3D11_USAGE_IMMUTABLE;
-	_ibd.CPUAccessFlags = 0;
-	_ibd.MiscFlags = 0;
-	_ibd.StructureByteStride = 0;
+	ZeroMemory(&ibd, sizeof(D3D11_BUFFER_DESC));
+	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibd.ByteWidth = objIndicesSize * sizeof(UINT);
+	ibd.Usage = D3D11_USAGE_IMMUTABLE;
+	ibd.CPUAccessFlags = 0;
+	ibd.MiscFlags = 0;
+	ibd.StructureByteStride = 0;
 
-	ZeroMemory(&_initData, sizeof(_initData));
-	_initData.pSysMem = mMeshToDraw->indices.data();
-	HR(md3dDevice->CreateBuffer(&_ibd, &_initData, &mIB));
-	mIndexToDraw =(UINT) mMeshToDraw->indices.size();
+	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
+	initData.pSysMem = objIndices;
+	HR(md3dDevice->CreateBuffer(&ibd, &initData, mIB.GetAddressOf()));
+#pragma endregion
 
+	delete[] objVertices;
+	delete[] objIndices;
 }
 
 void Scene::CreateConstantBuffer()
@@ -225,228 +257,200 @@ void Scene::CreateConstantBuffer()
 	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 
-#pragma region VS
-
 	cbd.ByteWidth = sizeof(VSCBPerFrame);
-	HR(md3dDevice->CreateBuffer(&cbd, nullptr, &mCBVSPerFrame));
+	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerFrame_VS.GetAddressOf()));
 
 	cbd.ByteWidth = sizeof(VSCBPerObj);
-	HR(md3dDevice->CreateBuffer(&cbd, nullptr, &mCBVSPerObj));
+	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerObj_VS.GetAddressOf()));
 
-#pragma endregion
-
-#pragma region PS
 	cbd.ByteWidth = sizeof(PSCBPerFrame);
-	HR(md3dDevice->CreateBuffer(&cbd, nullptr, &mCBPSPerFrame));
+	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerFrame_PS.GetAddressOf()));
 
 	cbd.ByteWidth = sizeof(PSCBPerObj);
-	HR(md3dDevice->CreateBuffer(&cbd, nullptr, &mCBPSPerObj));
-
-#pragma endregion
-
-
+	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerObj_PS.GetAddressOf()));
 
 }
-
-void Scene::CreateShaders()
-{	
-	std::ifstream fin;
-	fin.open("Shaders/VertexShader.cso", std::ios::binary);
-	if (fin.is_open())
-	{
-		fin.seekg(0, std::ios_base::end);
-		int byteSize = (int)fin.tellg();
-		std::vector<char> byteCode(byteSize);
-		fin.seekg(0, std::ios_base::beg);
-		fin.read(byteCode.data(), byteSize);
-
-		HR(md3dDevice->CreateVertexShader(byteCode.data(), byteSize, nullptr, &mVS));
-		fin.close();
-
-		D3D11_INPUT_ELEMENT_DESC id[3] =
-		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-			{"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,D3D11_INPUT_PER_VERTEX_DATA, 0}
-		};
-
-		HR(md3dDevice->CreateInputLayout(id, _countof(id), byteCode.data(), byteSize, &mIL));
-	}
-
-	fin.open("Shaders/PixelShader.cso", std::ios::binary);
-	if (fin.is_open())
-	{
-		fin.seekg(0, std::ios_base::end);
-		int byteSize = (int)fin.tellg();
-		std::vector<char> byteCode(byteSize);
-		fin.seekg(0, std::ios_base::beg);
-		fin.read(byteCode.data(), byteSize);
-
-		HR(md3dDevice->CreatePixelShader(byteCode.data(), byteSize, nullptr, &mPS));
-		fin.close();
-	}
-
-}
-
-void Scene::CreateSampleState()
-{
-
-	D3D11_SAMPLER_DESC sd;
-	ZeroMemory(&sd, sizeof(sd));
-	sd.Filter = D3D11_FILTER_ANISOTROPIC;
-	sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sd.MipLODBias = 0.0f;
-	sd.MaxAnisotropy = 4;
-
-	HR(md3dDevice->CreateSamplerState(&sd, &mSS));
-
-}
-
-
 
 void Scene::DrawScene()
 {
-
-
-	Camera* const mainCamera = GetMainCamera();
-	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Black);
-	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-
-
-#pragma region Update VS CBuffer
-	D3D11_MAPPED_SUBRESOURCE mSource;
-	// VS perFrame
-
-	
+	const Camera* const mainCamera = GetMainCamera();
 	XMFLOAT3 camPos = mainCamera->GetPosition();
-	XMStoreFloat4x4(&mVSPerFrame.camWVP, XMMatrixTranspose(XMMatrixTranslation(camPos.x, camPos.y, camPos.z) * mainCamera->GetViewProj()));
-	// mapping
 
-	ZeroMemory(&mSource, sizeof(mSource));
-	HR(md3dImmediateContext->Map(mCBVSPerFrame, 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
-	memcpy(mSource.pData, &mVSPerFrame, sizeof(mVSPerFrame));
-	md3dImmediateContext->Unmap(mCBVSPerFrame, 0);
-
-	md3dImmediateContext->VSSetConstantBuffers(0, 1, &mCBVSPerFrame);
-
-	// VS obj
-
-	XMMATRIX world = XMMatrixScaling(20, 0.5f, 20);
-
-	XMStoreFloat4x4(&mVSPerObj.world, XMMatrixTranspose(world));
-	XMStoreFloat4x4(&mVSPerObj.wvp, XMMatrixTranspose(XMMatrixMultiply(world, GetMainCamera()->GetViewProj())));
-
-	XMVECTOR det = XMMatrixDeterminant(world);
-	XMStoreFloat4x4(&mVSPerObj.worldInvTranspose, XMMatrixInverse(&det, world));
-
-	//mapping
-	ZeroMemory(&mSource, sizeof(mSource));
-	HR(md3dImmediateContext->Map(mCBVSPerObj, 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
-	memcpy(mSource.pData, &mVSPerObj, sizeof(mVSPerObj));
-	md3dImmediateContext->Unmap(mCBVSPerObj, 0);
-
-	md3dImmediateContext->VSSetConstantBuffers(1, 1, &mCBVSPerObj);
-#pragma endregion
-
-#pragma region Update PS cbuffer
-	// PS perframe
-	ZeroMemory(&mSource, sizeof(mSource));
-
-	// update light direction along Y axis	 
-	//XMVECTOR lightDir = XMVectorSet(mPSPerFrame.light.direction.x, mPSPerFrame.light.direction.y, mPSPerFrame.light.direction.z, 0);
-	//XMVECTOR yAxis = XMVectorSet(0, 1, 0, 0);
-	//XMStoreFloat3(&mPSPerFrame.light.direction, XMVector3Rotate(lightDir, XMQuaternionRotationNormal(yAxis, GetDeltaTime())));
-
-	//if (mPSPerFrame.light.position.y > 8)
-	//{
-	//	speedDir = -1;
-	//}
-	//else if (mPSPerFrame.light.position.y < 3)
-	//{
-	//	speedDir = 1;
-	//}
-
-	//mPSPerFrame.light.position.y += speedDir * GetDeltaTime();
-
-
-	// map
-	HR(md3dImmediateContext->Map(mCBPSPerFrame, 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
-	memcpy(mSource.pData, &mPSPerFrame, sizeof(mPSPerFrame));
-	md3dImmediateContext->Unmap(mCBPSPerFrame, 0);
-	// set buffer
-	md3dImmediateContext->PSSetConstantBuffers(0, 1, &mCBPSPerFrame);
-
-
-
-
-	// PS OBJ
-	ZeroMemory(&mSource, sizeof(mSource));
-
-
-	HR(md3dImmediateContext->Map(mCBPSPerObj, 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
-	memcpy(mSource.pData, &mPSPerObj, sizeof(mPSPerObj));
-	md3dImmediateContext->Unmap(mCBPSPerObj, 0);
-
-	md3dImmediateContext->PSSetConstantBuffers(1, 1, &mCBPSPerObj);
-#pragma endregion
-
-	UINT stride, offset;
-	ID3D11ShaderResourceView* tex;
-
-#pragma region Draw Sky Box
-
-	md3dImmediateContext->RSSetState(mRSBackFCC.Get());
-	tex = Objects::GetSkyTexuture();
-
-	stride = sizeof(Vertex12);
-	offset = 0;
-
-	md3dImmediateContext->IASetInputLayout(skyIL.Get());
-	md3dImmediateContext->IASetVertexBuffers(0, 1, skyVB.GetAddressOf(), &stride, &offset);
-	md3dImmediateContext->IASetIndexBuffer(skyIB.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-	md3dImmediateContext->VSSetShader(skyVS.Get(), 0, 0);
-	md3dImmediateContext->PSSetShader(skyPS.Get(), 0, 0);
-
-	md3dImmediateContext->PSSetShaderResources(1, 1, &tex);
-	md3dImmediateContext->DrawIndexed(skyIndexSize, 0, 0);
-
-	md3dImmediateContext->RSSetState(mRSDef.Get());
-
-#pragma endregion
-
+	// clear render view and depth view
+	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Black);
 	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
+	// Render setting
+	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	md3dImmediateContext->PSSetSamplers(0, 1, mSS4xAnisotropyWRAP.GetAddressOf());
+
+	// update frame cbuffer for PS and VS
+	D3D11_MAPPED_SUBRESOURCE mSource;
+
+#pragma region   Upload PerFrame cBuffer VS
+	// Update
+	XMStoreFloat4x4(&mToVRAMPerFrame_VS.camPosTransform, XMMatrixTranspose(XMMatrixTranslation(camPos.x, camPos.y, camPos.z) * mainCamera->GetViewProj()));
+	
+	// mapping
+	ZeroMemory(&mSource, sizeof(mSource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_VS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
+	memcpy(mSource.pData, &mToVRAMPerFrame_VS, sizeof(mToVRAMPerFrame_VS));
+	md3dImmediateContext->Unmap(mCBPerFrame_VS.Get(), 0);
+
+	// Apply
+	md3dImmediateContext->VSSetConstantBuffers(0, 1, mCBPerFrame_VS.GetAddressOf());
+
+#pragma endregion
+
+#pragma region Upload PerFrame cBuffer PS
+
+	mToVRAMPerFrame_PS.eyePosition = GetMainCamera()->GetPosition();
+
+	ZeroMemory(&mSource, sizeof(mSource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_PS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
+	memcpy(mSource.pData, &mToVRAMPerFrame_PS, sizeof(mToVRAMPerFrame_PS));
+	md3dImmediateContext->Unmap(mCBPerFrame_PS.Get(), 0);
+
+	// Apply
+	md3dImmediateContext->PSSetConstantBuffers(0, 1, mCBPerFrame_PS.GetAddressOf());
+
+#pragma endregion
 
 
-	md3dImmediateContext->IASetInputLayout(mIL);
-
-	stride = sizeof(Vertex);
-	offset = 0;
-
-
-
-	md3dImmediateContext->IASetVertexBuffers(0, 1, &mVB, &stride, &offset);
-	md3dImmediateContext->IASetIndexBuffer(mIB, DXGI_FORMAT_R32_UINT, 0);
-
-
-
-	md3dImmediateContext->VSSetShader(mVS, 0, 0);
-	md3dImmediateContext->PSSetShader(mPS, 0, 0);
-
-	tex = Objects::GetGrassTexture();
-	md3dImmediateContext->PSSetShaderResources(0, 1, &tex);
-	md3dImmediateContext->PSSetSamplers(0, 1, &mSS);
-
-	md3dImmediateContext->DrawIndexed(mIndexToDraw, 0, 0);
-
-
-
-
+	DrawOpaques();
+	DrawSkyBox();
+	DrawTransparents();
 
 
 	HR(mSwapChain->Present(0, 0));
+}
+
+void Scene::DrawOpaques()
+{
+
+	const Camera* const mainCamera = GetMainCamera();
+
+	UINT stride, offset;
+	stride = sizeof(Vertex);
+	offset = 0;
+
+	// 1. Set Vertex, Index Buffer , shaders for all objects to draw
+	md3dImmediateContext->IASetVertexBuffers(0, 1, mVB.GetAddressOf(), &stride, &offset);
+	md3dImmediateContext->IASetIndexBuffer(mIB.Get(), DXGI_FORMAT_R32_UINT, 0);
+	md3dImmediateContext->VSSetShader(mShaders->GetObjVS(), 0, 0);
+	md3dImmediateContext->PSSetShader(mShaders->GetObjPS(), 0, 0);
+	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32IL());
+
+
+	// 2. Draw Every Object
+	UINT index = 0;
+	for (size_t iOpa = 0; iOpa < mOpagueAmount; iOpa++)
+	{
+		index = mOpaqueIndices[iOpa];
+		(*mObjects)[index].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+	}
+
+}
+
+void Scene::DrawSkyBox()
+{
+	// Change Rasterization State, draw Triangle inside out
+	md3dImmediateContext->RSSetState(mRSFrontCull.Get());
+	md3dImmediateContext->OMSetDepthStencilState(mDSLessEqual.Get(), 0);
+
+	mSkyBox->Draw(md3dImmediateContext);
+
+	// Restore Rasterization State
+	md3dImmediateContext->RSSetState(nullptr);
+	md3dImmediateContext->OMSetDepthStencilState(0, 0);
+}
+
+void Scene::DrawTransparents()
+{
+	const Camera* const mainCamera = GetMainCamera();
+
+	UINT stride, offset;
+	stride = sizeof(Vertex);
+	offset = 0;
+
+	// 1. Set Vertex, Index Buffer , shaders for all objects to draw
+	md3dImmediateContext->IASetVertexBuffers(0, 1, mVB.GetAddressOf(), &stride, &offset);
+	md3dImmediateContext->IASetIndexBuffer(mIB.Get(), DXGI_FORMAT_R32_UINT, 0);
+	md3dImmediateContext->VSSetShader(mShaders->GetObjVS(), 0, 0);
+	md3dImmediateContext->PSSetShader(mShaders->GetObjPS(), 0, 0);
+	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32IL());
+
+	// 2. Draw Every transparent Object
+	float bf[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+#pragma region Using Stencil
+
+
+	// 1. draw mirror stencil buffer
+	md3dImmediateContext->OMSetBlendState(mBSNoRenderTargetWrite.Get(), bf, 0xffffffff);
+	md3dImmediateContext->OMSetDepthStencilState(mDSStencilMark.Get(), 0x01);
+
+	(*mObjects)[3].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+
+	md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
+	md3dImmediateContext->OMSetDepthStencilState(mDSReflection.Get(), 0x01);
+	md3dImmediateContext->RSSetState(mRSFrontCull.Get());
+
+	// 2. draw mirrored car
+	XMVECTOR mirrorPlane = XMVectorSet(1, 0, 0, 15);
+	XMMATRIX prevWorldMatrix = (*mObjects)[1].GetWorldMatrixXM();
+	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix * XMMatrixReflect(mirrorPlane));
+	(*mObjects)[1].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix);
+
+	md3dImmediateContext->OMSetDepthStencilState(nullptr, 0);
+
+	// 3. draw mirror
+
+
+	// 4. restore
+
+
+#pragma endregion
+
+	md3dImmediateContext->OMSetBlendState(mBSTransparent.Get(), bf, 0xffffffff);
+
+	// Draw Front face first
+	md3dImmediateContext->RSSetState(mRSFrontCull.Get());
+	size_t iTrans = 0;
+	UINT index = 0;
+	for (; iTrans < mTransparentAmount; iTrans++)
+	{
+		index = mTransparentIndices[iTrans];
+		(*mObjects)[index].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+	}
+
+	// Draw back face 
+	md3dImmediateContext->RSSetState(nullptr);
+	for (iTrans = 0; iTrans < mTransparentAmount; iTrans++)
+	{
+		index = mTransparentIndices[iTrans];
+		(*mObjects)[index].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+	}
+
+
+
+	// draw a car shadow
+	md3dImmediateContext->PSSetShader(mShaders->GetObjShaderPS(), 0, 0);
+
+	XMVECTOR shadowPlane = XMVectorSet(0, 1, 0, 0);
+	XMVECTOR lightDirection = -XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction);
+	XMMATRIX shadowMatrix = XMMatrixShadow(shadowPlane, lightDirection);
+
+	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix * shadowMatrix);
+
+	md3dImmediateContext->OMSetDepthStencilState(mDSNoDoubleBlend.Get(), 0);
+	(*mObjects)[1].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+
+	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix);
+
+	//restore blend state
+
+	md3dImmediateContext->OMSetDepthStencilState(nullptr, 0);
+	md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
 }

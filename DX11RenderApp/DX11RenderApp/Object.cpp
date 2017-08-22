@@ -1,81 +1,89 @@
 #include "Object.h"
 #include "GeometryGenerator.h"
 #include "SceneRenderApp.h"
+#include "Camera.h"
 
 
 
-Object::Object() :
-	mVB(nullptr),
-	mIB(nullptr),
-	mMesh(nullptr),
-	mMaterial(nullptr),
-	mTexMap(nullptr)
+Object::Object() 
 {
 	XMMATRIX I = XMMatrixIdentity();
-	XMStoreFloat4x4(&mTexTransform, I);
-	XMStoreFloat4x4(&mWorld, I);
 
-	mForward = { mWorld(0,0), mWorld(0,1), mWorld(0,2) };
-	mRight   = { mWorld(1,0), mWorld(1,1), mWorld(1,2) };
-	mUp      = { mWorld(2,0), mWorld(2,1), mWorld(2,2) };
-	mPos     = { mWorld(3,0), mWorld(3,1), mWorld(3,2) };
+	// world
+	XMStoreFloat4x4(&mToVRAM_VS.world, I);
+
+	// worldInvTranspose
+	XMVECTOR det = XMMatrixDeterminant(I);
+	XMStoreFloat4x4(&mToVRAM_VS.worldInvTranspose, XMMatrixInverse(&det, I));
+
+	// texTransform
+	XMStoreFloat4x4(&mToVRAM_VS.texTransform, I);
+
+	mToVRAM_PS.renderSetting = { 0, 0, 0, 0 };
 }
-
 
 Object::~Object()
 {
-	ReleaseCOM(mVB);
-	ReleaseCOM(mIB);
 }
 
-void Object::Edit(Mesh * _mesh, Material * _material, ID3D11ShaderResourceView * _mTexMap)
+void Object::Edit(Mesh * _mesh, Material* _material, ID3D11ShaderResourceView * _mTexMap)
 {
-	mMesh = _mesh;
-	mMaterial = _material;
-	mTexMap = _mTexMap;
-}
+	mMesh     = _mesh;
 
-void Object::BuildVIBuffer(ID3D11Device* const _d3dDevice, D3D11_BUFFER_DESC& _vbd, D3D11_BUFFER_DESC& _ibd, D3D11_SUBRESOURCE_DATA& _initData)
-{
-	if (mMesh != nullptr)
+	if (_material == nullptr)
+		mToVRAM_PS.material = *Objects::GetDefMaterial();
+	else
+		mToVRAM_PS.material = *_material;
+
+	if (_mTexMap != nullptr)
 	{
-
-		// VB:
-		ZeroMemory(&_vbd, sizeof(D3D11_BUFFER_DESC));
-		_vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		_vbd.ByteWidth = (UINT)mMesh->vertices.size() * sizeof(Vertex);
-		_vbd.Usage = D3D11_USAGE_IMMUTABLE;
-		_vbd.CPUAccessFlags = 0;
-		_vbd.MiscFlags = 0;
-		_vbd.StructureByteStride = 0;
-
-		ZeroMemory(&_initData, sizeof(D3D11_SUBRESOURCE_DATA));
-		_initData.pSysMem = mMesh->vertices.data();
-
-		HR(_d3dDevice->CreateBuffer(&_vbd, &_initData, &mVB));
-
-
-		// IB:
-		ZeroMemory(&_ibd, sizeof(D3D11_BUFFER_DESC));
-		_ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		_ibd.ByteWidth = (UINT)mMesh->indices.size() * sizeof(UINT);
-		_ibd.Usage = D3D11_USAGE_IMMUTABLE;
-		_ibd.CPUAccessFlags = 0;
-		_ibd.MiscFlags = 0;
-		_ibd.StructureByteStride = 0;
-
-		ZeroMemory(&_initData, sizeof(_initData));
-		_initData.pSysMem = mMesh->indices.data();
-
-		HR(_d3dDevice->CreateBuffer(&_ibd, &_initData, &mIB));
+		mTexMap = _mTexMap;
+		mToVRAM_PS.renderSetting.x = 1;
 	}
+	else
+	{
+		mToVRAM_PS.renderSetting.x = 0;
+	}
+}
+
+
+
+void Object::SortIndex(UINT _indexOffset, UINT _vertexOffset)
+{
+	mIndexOffset = _indexOffset;
+	mVertexOffset = _vertexOffset;
+}
+
+void Object::SetScale(const XMFLOAT3 & _xyz)
+{
+	XMMATRIX scale = XMMatrixScaling(_xyz.x, _xyz.y, _xyz.z);
+	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixMultiply(scale, XMLoadFloat4x4(&mToVRAM_VS.world)));
+	bWorldMatrixIsChanged = true;
 }
 
 void Object::SetPosition(const XMFLOAT3 & _pos)
 {
-	mWorld(3, 0) = _pos.x;
-	mWorld(3, 1) = _pos.y;
-	mWorld(3, 2) = _pos.z;
+	mToVRAM_VS.world(3, 0) = _pos.x;
+	mToVRAM_VS.world(3, 1) = _pos.y;
+	mToVRAM_VS.world(3, 2) = _pos.z;
+	bWorldMatrixIsChanged = true;
+}
+
+void Object::SetTexTransform(float _x, float _y)
+{
+	mToVRAM_VS.texTransform(0, 0) = _x;
+	mToVRAM_VS.texTransform(1, 1) = _y;
+}
+
+void Object::SetWorldMatrix(CXMMATRIX _matrix)
+{
+	XMStoreFloat4x4(&mToVRAM_VS.world, _matrix);
+	bWorldMatrixIsChanged = true;
+}
+
+XMMATRIX Object::GetWorldMatrixXM() const
+{
+	return XMLoadFloat4x4(&mToVRAM_VS.world);
 }
 
 void Object::Update(float _deltaTime)
@@ -83,42 +91,81 @@ void Object::Update(float _deltaTime)
 
 }
 
-//void Object::Draw(ID3D11DeviceContext * const _d3dImmediateContext, UINT& _stride, UINT& _offset, CXMMATRIX _viewProj, UINT passIndex)
-//{
-//
-//	if (mMesh != nullptr)
-//	{
-//		_d3dImmediateContext->IASetVertexBuffers(0, 1, &mVB, &_stride, &_offset);
-//		_d3dImmediateContext->IASetIndexBuffer(mIB, DXGI_FORMAT_R32_UINT, 0);
-//
-//
-//
-//		XMMATRIX world = XMLoadFloat4x4(&mWorld);
-//		XMMATRIX worldInvTranspose = MathHelper::InverseTranspose(world);
-//		XMMATRIX worldViewProj = world * _viewProj;
-//
-//		Effects::BaseFx->SetWorldMatrix(world);
-//		Effects::BaseFx->SetWorldInvTranspMatrix(worldInvTranspose);
-//		Effects::BaseFx->SetWVPMatrix(worldViewProj);
-//		Effects::BaseFx->SetTexTransform(XMLoadFloat4x4(&mTexTransform));
-//		Effects::BaseFx->SetMaterial(*mMaterial);
-//		
-//		ID3DX11EffectTechnique* _activeTech;
-//
-//		if (mTexMap != nullptr)
-//		{
-//			Effects::BaseFx->SetTexResource(mTexMap);
-//			_activeTech = Effects::BaseFx->mLightTech;
-//		}
-//		else
-//		{
-//			_activeTech = Effects::BaseFx->mLightTechNoTex;
-//		}
-//
-//		_activeTech->GetPassByIndex(passIndex)->Apply(0, _d3dImmediateContext);
-//		_d3dImmediateContext->DrawIndexed(mMesh->indices.size(), 0, 0);
-//	}
-//}
+void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11Buffer* _PSCB, const Camera* const _mCam)
+{
+	// set texture
+	devContext->PSSetShaderResources(0, 1, &mTexMap);
+
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+
+#pragma region Upload cBuffer VS
+
+	// set VS cbuffer
+	XMMATRIX world = XMLoadFloat4x4(&mToVRAM_VS.world);
+
+	// wvp, must be update every frame
+	XMMATRIX wvp = world * _mCam->GetViewProj();
+	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
+
+
+	if (bWorldMatrixIsChanged)
+	{
+		XMMATRIX world = XMLoadFloat4x4(&mToVRAM_VS.world);
+		world.r[3] = XMVectorSet(0, 0, 0, 1);
+		// worldInvTranspose
+		XMVECTOR det = XMMatrixDeterminant(world);
+ 		XMStoreFloat4x4(&mToVRAM_VS.worldInvTranspose, XMMatrixInverse(&det, world));
+		bWorldMatrixIsChanged = false;
+	}
+
+	// map VS cbuffer
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	HR(devContext->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mToVRAM_VS, sizeof(mToVRAM_VS));
+	devContext->Unmap(_VSCB, 0);
+
+	devContext->VSSetConstantBuffers(1, 1, &_VSCB);
+
+	
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	HR(devContext->Map(_PSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mToVRAM_PS, sizeof(mToVRAM_PS));
+	devContext->Unmap(_PSCB, 0);
+
+	devContext->PSSetConstantBuffers(1, 1, &_PSCB);
+#pragma endregion
+		
+	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
+}
+
+bool Object::IsTransparent() const
+{
+	return mToVRAM_PS.renderSetting.y == 1;
+}
+
+const Mesh* const Object::GetMesh() const
+{
+	return mMesh;
+}
+
+void Object::SetDiffuseColor(const FLOAT* _color, float _alpha)
+{
+	mToVRAM_PS.material.diffuseAlbedo.x = _color[0];
+	mToVRAM_PS.material.diffuseAlbedo.y = _color[1];
+	mToVRAM_PS.material.diffuseAlbedo.z = _color[2];
+	mToVRAM_PS.material.diffuseAlbedo.w = _alpha;
+}
+
+void Object::SetDiffuseAlpha(float _val)
+{
+	mToVRAM_PS.material.diffuseAlbedo.w = MathHelper::Clamp(_val, 0.0f, 1.0f);
+}
+
+void Object::SetTransparent(bool _val)
+{
+	mToVRAM_PS.renderSetting.y = _val;
+}
+
 
 
 
@@ -128,12 +175,17 @@ void Object::Update(float _deltaTime)
 Mesh*           Objects::testCube_mesh = nullptr;
 Mesh*           Objects::car_mesh = nullptr;
 Mesh*           Objects::defCube_mesh = nullptr;
+Mesh*           Objects::defPlane_mesh = nullptr;
+
 Material*       Objects::def_material = nullptr;
 
 
-ID3D11ShaderResourceView* Objects::car_texture = nullptr;
-ID3D11ShaderResourceView* Objects::grass_texture = nullptr;
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::grass_texture = nullptr;
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::car_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::sky_texture = nullptr;
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::floor_texture = nullptr;
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::wall_texture = nullptr;
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::ice_texture = nullptr;
 
 
 Objects::Objects()
@@ -141,10 +193,12 @@ Objects::Objects()
 	testCube_mesh = new Mesh();
 	car_mesh      = new Mesh();
 	defCube_mesh  = new Mesh();
+	defPlane_mesh = new Mesh();
 
 	def_material = new Material();
-
 	def_material->diffuseAlbedo = { 0.5f,0.5f,0.5f,1.0f };
+	def_material->fresnelR0 = { 0,0,0 };
+	def_material->shininess = 0;
 }
 
 Objects::~Objects()
@@ -152,11 +206,9 @@ Objects::~Objects()
 	delete car_mesh;
 	delete testCube_mesh;
 	delete defCube_mesh;
+	delete defPlane_mesh;
 
 	delete def_material;
-
-	ReleaseCOM(car_texture);
-	ReleaseCOM(grass_texture);
 }
 
 Mesh * Objects::GetTestCubeMesh()
@@ -174,6 +226,11 @@ Mesh * Objects::GetDefaultCubeMesh()
 	return defCube_mesh;
 }
 
+Mesh * Objects::GetDefaultPlaneMesh()
+{
+	return defPlane_mesh;
+}
+
 Material * Objects::GetDefMaterial()
 {
 	return def_material;
@@ -181,17 +238,32 @@ Material * Objects::GetDefMaterial()
 
 ID3D11ShaderResourceView * Objects::GetCarTexture()
 {
-	return car_texture;
+	return car_texture.Get();
 }
 
 ID3D11ShaderResourceView * Objects::GetGrassTexture()
 {
-	return grass_texture;
+	return grass_texture.Get();
 }
 
 ID3D11ShaderResourceView * Objects::GetSkyTexuture()
 {
 	return sky_texture.Get();
+}
+
+ID3D11ShaderResourceView * Objects::GetFloorTexture()
+{
+	return floor_texture.Get();
+}
+
+ID3D11ShaderResourceView * Objects::GetWallTexture()
+{
+	return wall_texture.Get();
+}
+
+ID3D11ShaderResourceView * Objects::GetIceTexture()
+{
+	return ice_texture.Get();
 }
 
 
@@ -202,10 +274,15 @@ void Objects::LoadAssets(ID3D11Device* _device)
 	Objects::LoadObjFile("../Models/car.obj", car_mesh);
 
 	GeometryGenerator::CreateCube(1, 1, 1, defCube_mesh);
+	GeometryGenerator::CreatePlane(1, 1, defPlane_mesh);
 
-	HR(CreateWICTextureFromFile(_device, L"../Models/car.png", nullptr, &car_texture));
-	HR(CreateWICTextureFromFile(_device, L"../Models/grass.png", nullptr, &grass_texture));
-	HR(CreateDDSTextureFromFile(_device, L"../Models/sunsetcube.dds", nullptr, &sky_texture));
+	HR(CreateWICTextureFromFile(_device, L"../Models/car.png", nullptr,        car_texture  .GetAddressOf()));
+	HR(CreateWICTextureFromFile(_device, L"../Models/grass.png", nullptr,      grass_texture.GetAddressOf()));
+	HR(CreateDDSTextureFromFile(_device, L"../Models/sunsetcube.dds", nullptr, sky_texture  .GetAddressOf()));
+	HR(CreateDDSTextureFromFile(_device, L"../Models/checkboard.dds", nullptr, floor_texture.GetAddressOf()));
+	HR(CreateDDSTextureFromFile(_device, L"../Models/brick01.dds", nullptr,    wall_texture.GetAddressOf()));
+	HR(CreateDDSTextureFromFile(_device, L"../Models/ice.dds", nullptr, ice_texture.GetAddressOf()));
+
 
 }
 
@@ -356,41 +433,13 @@ bool Objects::LoadObjFile(const char * _path, Mesh* _out)
 			_out->vertices[i].pos = pos[(uniqueVertexIndices[i].positionIndex - 1)];
 			_out->vertices[i].pos.z = -_out->vertices[i].pos.z;
 
-			_out->vertices[i].nor
-				= {-nor[(uniqueVertexIndices[i].normalIndex - 1)].x, -nor[(uniqueVertexIndices[i].normalIndex - 1)].y, -nor[(uniqueVertexIndices[i].normalIndex - 1)].z };
+			_out->vertices[i].nor = nor[(uniqueVertexIndices[i].normalIndex - 1)];
+			_out->vertices[i].nor.z = -_out->vertices[i].nor.z;
 
 			_out->vertices[i].uv = uv[(uniqueVertexIndices[i].uvIndex - 1)];
 
 			_out->vertices[i].uv.y = 1 - _out->vertices[i].uv.y;
 		}
-
-		//for (UINT i = 0; i < _out->vertices.size(); i+=3)
-		//{
-		//	_out->vertices[i].pos = pos[(uniqueVertexIndices[i].positionIndex - 1)];
-		//	_out->vertices[i].nor = nor[(uniqueVertexIndices[i].normalIndex - 1)];
-		//	_out->vertices[i].uv = uv[(uniqueVertexIndices[i+2].uvIndex - 1)];
-
-		//	_out->vertices[i+1].pos = pos[(uniqueVertexIndices[i+1].positionIndex - 1)];
-		//	_out->vertices[i+1].nor = nor[(uniqueVertexIndices[i+1].normalIndex - 1)];
-		//	_out->vertices[i+1].uv   = uv[(uniqueVertexIndices[i+1].uvIndex - 1)];
-
-
-		//	_out->vertices[i+2].pos = pos[(uniqueVertexIndices[i+2].positionIndex - 1)];
-		//	_out->vertices[i+2].nor = nor[(uniqueVertexIndices[i+2].normalIndex - 1)];
-		//	_out->vertices[i+2].uv   = uv[(uniqueVertexIndices[i].uvIndex - 1)];
-
-
-		//	//_out->vertices[i].uv.x = _out->vertices[i].uv.x - (_out->vertices[i].uv.x - 0.5f) * 2 + .25f;
-		//	//_out->vertices[i].uv.x = _out->vertices[i].uv.x  - 1;
-		//	//_out->vertices[i].uv.y = _out->vertices[i].uv.y - .25f;
-		//	_out->vertices[i].uv.y = 1 - _out->vertices[i].uv.y;
-		//	_out->vertices[i+1].uv.y = 1 - _out->vertices[i+1].uv.y; 
-		//	_out->vertices[i+2].uv.y = 1 - _out->vertices[i+2].uv.y;
-		//	//_out->vertices[i].uv.y = _out->vertices[i].uv.y - (_out->vertices[i].uv.y - 0.5f) * 2;
-		//	//_out->vertices[i].uv.y = 1 - _out->vertices[i].uv.y;
-		//	//_out->vertices[i].uv.x = 1 - _out->vertices[i].uv.x + 0.25f;
-		//}
-
 
 #pragma endregion
 

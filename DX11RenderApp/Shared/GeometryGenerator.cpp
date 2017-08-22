@@ -11,6 +11,11 @@ GeometryGenerator::~GeometryGenerator()
 {
 }
 
+void GeometryGenerator::CreateGrid(float _width, float _depth, UINT _x, float _z, Mesh* _mesh)
+{
+
+}
+
 void GeometryGenerator::CreateCube(float _width, float _height, float _depth, Mesh* _mesh)
 {
 	_mesh->indices.clear();
@@ -146,6 +151,29 @@ void GeometryGenerator::CreateSphere(float _radius, UINT _stack, Mesh * _mesh)
 		}
 	}
 	
+}
+
+void GeometryGenerator::CreatePlane(float _width, float _depth, Mesh * _mesh)
+{
+	_mesh->indices.clear();
+	_mesh->vertices.clear();
+
+	_mesh->indices.resize(6);
+	_mesh->vertices.resize(4);
+
+	float halfWidth = _width * 0.5f;
+	float halfDepth = _depth * 0.5f;
+	XMFLOAT3 normal = { 0, 1, 0 };
+
+	(_mesh->vertices)[0] = { XMFLOAT3(-halfWidth, 0, halfDepth), normal, XMFLOAT2(0 ,0) };
+	(_mesh->vertices)[1] = { XMFLOAT3(halfWidth, 0, halfDepth), normal, XMFLOAT2(1 ,0) };
+	(_mesh->vertices)[2] = { XMFLOAT3(halfWidth, 0, -halfDepth), normal, XMFLOAT2(1 ,1) };
+	(_mesh->vertices)[3] = { XMFLOAT3(-halfWidth, 0, -halfDepth), normal, XMFLOAT2(0 ,1) };
+
+
+
+	(_mesh->indices)[0] = 0;    (_mesh->indices)[1] = 1;    (_mesh->indices)[2] = 2;
+	(_mesh->indices)[3] = 0; 	(_mesh->indices)[4] = 2;	(_mesh->indices)[5] = 3;
 }
 
 
