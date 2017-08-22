@@ -66,7 +66,7 @@ void Scene::ObjInitAndEdit()
 
 	// Car
 	(*mObjects)[1].Edit(Objects::GetCarMesh(), nullptr, Objects::GetCarTexture());
-	(*mObjects)[1].SetPosition(XMFLOAT3(0, 0, 15));
+	(*mObjects)[1].SetPosition(XMFLOAT3(0, 0, 5));
 
 	// transparent cube
 	(*mObjects)[2].Edit(Objects::GetDefaultCubeMesh(), nullptr, nullptr);
@@ -75,14 +75,13 @@ void Scene::ObjInitAndEdit()
 	(*mObjects)[2].SetDiffuseColor(DirectX::Colors::Cyan, 0.3f);
 	(*mObjects)[2].SetTransparent(true);
 
+	// mirror
 	(*mObjects)[3].Edit(Objects::GetDefaultCubeMesh(), nullptr, Objects::GetIceTexture());
-	(*mObjects)[3].SetPosition(XMFLOAT3(-15 , 7.5f, 15));
-	(*mObjects)[3].SetScale(XMFLOAT3(1, 15, 25));
-	(*mObjects)[3].SetTexTransform(3, 2);
-	(*mObjects)[3].SetDiffuseAlpha(0.5f);
+	(*mObjects)[3].SetPosition(XMFLOAT3(-30 , 15, 0));
+	(*mObjects)[3].SetScale(XMFLOAT3(1, 30, 50));
+	(*mObjects)[3].SetTexTransform(3, 5);
+	(*mObjects)[3].SetDiffuseAlpha(0.3f);
 	(*mObjects)[3].SetTransparent(true);
-
-
 
 #pragma endregion
 
@@ -145,13 +144,15 @@ void Scene::ObjInitAndEdit()
 
 	// Spot light - 
 	mToVRAMPerFrame_PS.light[2].lightColor = XMFLOAT3((const float*)&Colors::DeepPink);
-	mToVRAMPerFrame_PS.light[2].direction = { -1, 0.3f, 1 };
+	mToVRAMPerFrame_PS.light[2].direction = { -1, -1, 1 };
 	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].direction,
 		XMVector3Normalize(MathHelper::XMFloat3ToXMVector(mToVRAMPerFrame_PS.light[2].direction)));
-	mToVRAMPerFrame_PS.light[2].position = { 18.0f, 1.0f, -18.0f };
+	mToVRAMPerFrame_PS.light[2].position = { 25.0f, 7.5f, -25.0f };
 	mToVRAMPerFrame_PS.light[2].fallOffStart = 0;
-	mToVRAMPerFrame_PS.light[2].fallOffend = 40;
+	mToVRAMPerFrame_PS.light[2].fallOffend = 50;
 	mToVRAMPerFrame_PS.light[2].spotAngle = 0.7f; //45
+
+	pointSpeedY = 1.0f;
 
 	XMFLOAT4 fogColor = XMFLOAT4((const float*)(&DirectX::Colors::WhiteSmoke));
 	mToVRAMPerFrame_PS.fogColor = { fogColor.x, fogColor.y, fogColor.z };
@@ -269,6 +270,42 @@ void Scene::CreateConstantBuffer()
 	cbd.ByteWidth = sizeof(PSCBPerObj);
 	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerObj_PS.GetAddressOf()));
 
+}
+
+void Scene::UpdateScene(float _deltaTime)
+{
+	CXMVECTOR zAxis = XMVectorSet(0, 0, 1, 0);
+	CXMVECTOR yAxis = XMVectorSet(0, 1, 0, 0);
+
+	//rotate direction light on Z;
+	CXMMATRIX rotationZ = XMMatrixRotationNormal(zAxis, 0.5f * _deltaTime);
+	
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[0].direction,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction), rotationZ));
+
+	//move pointlight sine wave
+	CXMMATRIX rotationY = XMMatrixRotationNormal(yAxis, 0.5f * _deltaTime);
+
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[1].position,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[1].position), rotationY));
+
+	if (mToVRAMPerFrame_PS.light[1].position.y > 15)
+		pointSpeedY = -1.0f;
+	else if(mToVRAMPerFrame_PS.light[1].position.y < 5)
+		pointSpeedY = 1.0f;
+
+	mToVRAMPerFrame_PS.light[1].position.y += pointSpeedY * _deltaTime;
+
+	// move spot light
+
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].position,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[2].position), rotationY));
+	XMMATRIX rotationNegY = XMMatrixTranspose(rotationY);
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].direction,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[2].direction), rotationY));
+
+
+	SceneRender::UpdateScene(_deltaTime);
 }
 
 void Scene::DrawScene()
@@ -397,7 +434,7 @@ void Scene::DrawTransparents()
 	md3dImmediateContext->RSSetState(mRSFrontCull.Get());
 
 	// 2. draw mirrored car
-	XMVECTOR mirrorPlane = XMVectorSet(1, 0, 0, 15);
+	XMVECTOR mirrorPlane = XMVectorSet(1, 0, 0, 30);
 	XMMATRIX prevWorldMatrix = (*mObjects)[1].GetWorldMatrixXM();
 	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix * XMMatrixReflect(mirrorPlane));
 	(*mObjects)[1].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);

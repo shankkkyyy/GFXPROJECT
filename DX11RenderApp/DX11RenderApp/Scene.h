@@ -37,9 +37,11 @@ private:
 	UINT mOpagueAmount = 0;
 	UINT mTransparentAmount = 0;
 
+	float pointSpeedY = 0;
+	float spotSpeedY = 0;
+
 
 private:
-
 
 	void CreateConstantBuffer();
 
@@ -48,6 +50,9 @@ private:
 
 	// build the geometry according to the objs to draw
 	void BuildGeometry();
+
+
+	void UpdateScene(float _deltaTime) override;
 
 	void DrawScene() override;	
 
