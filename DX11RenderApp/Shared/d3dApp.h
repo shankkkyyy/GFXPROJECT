@@ -36,6 +36,10 @@ public:
 	POINT                 GetLastMousePosition() const;
 	const WndInput* const GetWndInput() const;
 
+	ID3D11Device*         GetDevice()        const;
+	ID3D11DeviceContext*  GetDeviceContext() const;
+
+
 
 	int Run();
 
@@ -104,8 +108,9 @@ protected:
 																	       
 	Microsoft::WRL::ComPtr<ID3D11BlendState>        mBSTransparent         = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11BlendState>        mBSNoRenderTargetWrite = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11BlendState>        mBSAlphaToCoverage     = nullptr;
 
-	Microsoft::WRL::ComPtr<ID3D11SamplerState>      mSS4xAnisotropyWRAP    = nullptr;
+	std::vector < Microsoft::WRL::ComPtr<ID3D11SamplerState>> mSSs;
 
 	D3D11_VIEWPORT          mScreenViewPort;
 
@@ -127,7 +132,6 @@ private:
 	void CreateBlendStates();
 
 	void CalculateAspectRatio();
-
 
 	void FetchWndInputOnMouse(WPARAM _wParam, LPARAM _lParam);
 

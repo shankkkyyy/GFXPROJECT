@@ -38,7 +38,7 @@ void SkyBox::Edit(ID3D11VertexShader * const _VS, ID3D11PixelShader * const _PS,
 	// VB
 	ZeroMemory(&vbd, sizeof(D3D11_BUFFER_DESC));
 	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.ByteWidth = (UINT)skyGeometery->vertices.size() * sizeof(Vertex);
+	vbd.ByteWidth = (UINT)skyGeometery->vertices.size() * sizeof(Vertex12);
 	vbd.Usage = D3D11_USAGE_IMMUTABLE;
 	vbd.CPUAccessFlags = 0;
 	vbd.MiscFlags = 0;
@@ -71,7 +71,6 @@ void SkyBox::Edit(ID3D11VertexShader * const _VS, ID3D11PixelShader * const _PS,
 void SkyBox::Draw(ID3D11DeviceContext * _ImmediateContext)
 {
 
-
 	// IA stage
 	UINT stride, offset;
 	offset = 0;
@@ -81,6 +80,7 @@ void SkyBox::Draw(ID3D11DeviceContext * _ImmediateContext)
 
 	_ImmediateContext->VSSetShader(mVS, 0, 0);
 	_ImmediateContext->PSSetShader(mPS, 0, 0);
+	_ImmediateContext->GSSetShader(nullptr, 0, 0);
 	_ImmediateContext->IASetInputLayout(mIL);
 	
 	// texture

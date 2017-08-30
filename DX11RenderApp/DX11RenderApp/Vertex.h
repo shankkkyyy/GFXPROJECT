@@ -25,10 +25,17 @@ struct Vertex
 	Vertex& operator= (const Vertex& _other);
 };
 
+struct VertexBB
+{
+	DirectX::XMFLOAT3 root;
+	DirectX::XMFLOAT2 size;
+};
+
 
 class InputLayoutDesc
 {
 public:
+	static const D3D11_INPUT_ELEMENT_DESC IDPosSize[2];
 	static const D3D11_INPUT_ELEMENT_DESC IDPos[1];
 	static const D3D11_INPUT_ELEMENT_DESC IDPosNor[2];
 	static const D3D11_INPUT_ELEMENT_DESC IDBasic32[3];

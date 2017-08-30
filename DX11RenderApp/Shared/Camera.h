@@ -18,9 +18,12 @@ public:
 
 	DirectX::XMFLOAT3 GetPosition() const;
 	DirectX::XMVECTOR GetPositionXM() const;
-	DirectX::XMMATRIX GetView() const;
+	DirectX::XMFLOAT4X4 GetView() const;
+	DirectX::XMMATRIX GetViewXM() const;
 	DirectX::XMMATRIX GetProj() const;
-	DirectX::XMMATRIX GetViewProj() const;
+	DirectX::XMFLOAT4X4 GetViewProj() const;
+	DirectX::XMMATRIX GetViewProjXM() const;
+
 	DirectX::XMMATRIX GetWorld() const;
 	
 
@@ -59,6 +62,8 @@ private:
 	DirectX::XMFLOAT4X4 mProj;
 
 	DirectX::XMFLOAT4X4 mWorld;
+
+	DirectX::XMFLOAT4X4 mViewProj;
 
 public:
 

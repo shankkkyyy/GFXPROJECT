@@ -27,6 +27,22 @@ struct VertexOut
     float2 uv_w : UV;
 };
 
+struct VertexIOBB
+{
+    float3 root_w : POSITION;
+    float2 size   : SIZE;
+};
+
+struct GeoOutBB
+{
+    float4 pos_h : SV_POSITION;
+    float3 pos_w : POSITION;
+    float3 nor_w : NORMAL;
+    float2 uv    : UV;
+    uint primID  : SV_PrimitiveID;
+};
+
+
 struct Material
 {
     float4 diffuseAlbedo;
@@ -43,3 +59,4 @@ struct Light
     float3 position;
     float spotAngle;
 };
+

@@ -549,6 +549,16 @@ const WndInput* const D3DApp::GetWndInput() const
 	return &mWndInput;
 }
 
+ID3D11Device * D3DApp::GetDevice() const
+{
+	return md3dDevice;
+}
+
+ID3D11DeviceContext * D3DApp::GetDeviceContext() const
+{
+	return md3dImmediateContext;
+}
+
 void D3DApp::CreateRasterizationStates()
 {
 	// Default
@@ -572,16 +582,29 @@ void D3DApp::CreateRasterizationStates()
 
 void D3DApp::CreateSamplerStates()
 {
+
+
+	mSSs.resize(2);
+
 	D3D11_SAMPLER_DESC sd;
 	ZeroMemory(&sd, sizeof(sd));
 	sd.Filter = D3D11_FILTER_ANISOTROPIC;
 	sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 	sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sd.MipLODBias = 0.0f;
 	sd.MaxAnisotropy = 4;
+	sd.MinLOD = -FLT_MAX;
+	sd.MaxLOD = FLT_MAX;
 
-	HR(md3dDevice->CreateSamplerState(&sd, mSS4xAnisotropyWRAP.GetAddressOf()));
+	HR(md3dDevice->CreateSamplerState(&sd, mSSs[0].GetAddressOf()));
+
+
+	sd.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sd.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+	HR(md3dDevice->CreateSamplerState(&sd, mSSs[1].GetAddressOf()));
+
 }
 
 void D3DApp::CreateDepthStencilStates()
@@ -700,6 +723,14 @@ void D3DApp::CreateBlendStates()
 	bsd.RenderTarget[0].RenderTargetWriteMask = 0;
 
 	HR(md3dDevice->CreateBlendState(&bsd, mBSNoRenderTargetWrite.GetAddressOf()));
+
+	ZeroMemory(&bsd, sizeof(D3D11_BLEND_DESC));
+	bsd.AlphaToCoverageEnable = true;
+	bsd.IndependentBlendEnable = false;
+	bsd.RenderTarget[0].BlendEnable = false;
+	bsd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	HR(md3dDevice->CreateBlendState(&bsd, mBSAlphaToCoverage.GetAddressOf()));
 
 }
 

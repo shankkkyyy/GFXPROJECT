@@ -35,6 +35,7 @@
 #include <vector>
 #include <forward_list>
 #include <wrl.h> // for COM
+#include <Algorithm>
 
 
 #include "Mathhelper.h"
@@ -120,7 +121,6 @@ struct VSCBPerFrame
 	XMFLOAT4X4 camPosTransform;
 };
 
-
 struct PSCBPerFrame
 {
 	XMFLOAT3  eyePosition; 
@@ -131,7 +131,11 @@ struct PSCBPerFrame
 	XMFLOAT4  ambientLight; //192
 };
 
-
+struct GSCBPerFrame
+{
+	XMFLOAT4   eyePosition;
+	XMFLOAT4X4 viewProj;
+};
 
 struct VSCBPerObj
 {
@@ -144,7 +148,7 @@ struct VSCBPerObj
 struct PSCBPerObj
 {
 	Material   material; // 4
-	XMINT4     renderSetting; // x: has diffuse tex, y: isTransparent
+	XMINT4     renderSetting; // x: whether has diffuse texture, y: isTransparent
 };
 
 

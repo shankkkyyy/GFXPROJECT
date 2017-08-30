@@ -1,7 +1,6 @@
 #include "d3dUtil.h"
 
 
-
 bool d3dHelper::LoadShaderByteCode(const wchar_t* _path, std::vector<char>& _byteCode)
 {
 	std::ifstream fin;

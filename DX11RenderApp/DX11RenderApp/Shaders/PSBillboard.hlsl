@@ -3,7 +3,7 @@
 #include "Functions.hlsli"
 
 // r, g, b, a
-float4 main(VertexOut pin)  : SV_TARGET
+float4 main(GeoOutBB pin)  : SV_TARGET
 {
 
     Material mat;
@@ -18,7 +18,11 @@ float4 main(VertexOut pin)  : SV_TARGET
     else
     {
         // Get diffuse texture color 
-        float4 diffuseAlbedo = diffuseMap.Sample(ss, pin.uv_w);
+        float3 uvw = { pin.uv, pin.primID % 4 };
+        float4 diffuseAlbedo = diffuseMapArray.Sample(ssClamp, uvw) * objMaterial.diffuseAlbedo;
+
+        clip(diffuseAlbedo.a - 0.1f);
+
         mat.diffuseAlbedo.rgb = diffuseAlbedo.rgb;
         mat.shininess = objMaterial.shininess;
         mat.fresenlR0 = objMaterial.fresenlR0;
@@ -34,6 +38,8 @@ float4 main(VertexOut pin)  : SV_TARGET
     float3 dirLightColor = ComputeDirectionalLight(gLight[0], mat, pin.nor_w, toEye);
     float3 pointLightColor = ComputePointLight(gLight[1], objMaterial, pin.nor_w, pin.pos_w);
     float3 spotLight = ComputeSpotLight(gLight[2], objMaterial, pin.nor_w, pin.pos_w);
+
+
 
     float4 litColor;
     litColor.rgb = dirLightColor + ambLightColor + pointLightColor + spotLight;

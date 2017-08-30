@@ -6,7 +6,7 @@
 Camera::Camera() : 
 	mFieldOfView(MathHelper::Pi * 0.25f),
 	mNP(.3f),
-	mFP(200.0f)
+	mFP(800.0f)
 {
 
 	XMFLOAT4X4 r;
@@ -39,7 +39,12 @@ DirectX::XMVECTOR Camera::GetPositionXM() const
 	return XMLoadFloat3(&mPosition);
 }
 
-DirectX::XMMATRIX Camera::GetView() const
+DirectX::XMFLOAT4X4 Camera::GetView() const
+{
+	return mView;
+}
+
+DirectX::XMMATRIX Camera::GetViewXM() const
 {
 	return XMLoadFloat4x4(&mView);
 }
@@ -49,9 +54,14 @@ DirectX::XMMATRIX Camera::GetProj() const
 	return XMLoadFloat4x4(&mProj);
 }
 
-DirectX::XMMATRIX Camera::GetViewProj() const
+DirectX::XMFLOAT4X4 Camera::GetViewProj() const
 {
-	return XMLoadFloat4x4(&mView) * XMLoadFloat4x4(&mProj);
+	return mViewProj;
+}
+
+DirectX::XMMATRIX Camera::GetViewProjXM() const
+{
+	return XMLoadFloat4x4(&mViewProj);
 }
 
 DirectX::XMMATRIX Camera::GetWorld() const
@@ -140,6 +150,8 @@ void Camera::Update(float _deltaTime)
 	mView(0, 3) = 0.0f;
 	mView(1, 3) = 0.0f;
 	mView(2, 3) = 0.0f;
+
+	XMStoreFloat4x4(&mViewProj, XMLoadFloat4x4(&mView) * XMLoadFloat4x4(&mProj));
 
 #pragma endregion
 

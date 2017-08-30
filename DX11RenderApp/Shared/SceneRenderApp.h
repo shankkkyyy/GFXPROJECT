@@ -10,7 +10,9 @@ class SceneRender :
 	public D3DApp
 {
 public:
+
 	SceneRender(HINSTANCE _hInstance);
+
 	virtual ~SceneRender();
 
 public:

@@ -48,7 +48,7 @@ void Object::Edit(Mesh * _mesh, Material* _material, ID3D11ShaderResourceView * 
 
 
 
-void Object::SortIndex(UINT _indexOffset, UINT _vertexOffset)
+void Object::SetIndexOffset(UINT _indexOffset, UINT _vertexOffset)
 {
 	mIndexOffset = _indexOffset;
 	mVertexOffset = _vertexOffset;
@@ -81,9 +81,33 @@ void Object::SetWorldMatrix(CXMMATRIX _matrix)
 	bWorldMatrixIsChanged = true;
 }
 
+void Object::SetName(const char* const _val)
+{
+	UINT size = _countof(mName);
+	ZeroMemory(mName, size);
+	strcpy_s(mName, size, _val);
+}
+
 XMMATRIX Object::GetWorldMatrixXM() const
 {
 	return XMLoadFloat4x4(&mToVRAM_VS.world);
+}
+
+void Object::UpdateDepth(const Camera * const _cam)
+{
+	XMFLOAT4 camViewCol2 =
+	{
+		_cam->GetView()(0, 2),
+		_cam->GetView()(1, 2),
+		_cam->GetView()(2, 2),
+		_cam->GetView()(3, 2)
+	};
+
+	mDepth =
+		camViewCol2.x * mToVRAM_VS.world(3, 0) +
+		camViewCol2.y * mToVRAM_VS.world(3, 1) +
+		camViewCol2.z * mToVRAM_VS.world(3, 2) +
+		camViewCol2.w * mToVRAM_VS.world(3, 3);
 }
 
 void Object::Update(float _deltaTime)
@@ -93,6 +117,7 @@ void Object::Update(float _deltaTime)
 
 void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11Buffer* _PSCB, const Camera* const _mCam)
 {
+
 	// set texture
 	devContext->PSSetShaderResources(0, 1, &mTexMap);
 
@@ -104,7 +129,7 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 	XMMATRIX world = XMLoadFloat4x4(&mToVRAM_VS.world);
 
 	// wvp, must be update every frame
-	XMMATRIX wvp = world * _mCam->GetViewProj();
+	XMMATRIX wvp = world * _mCam->GetViewProjXM();
 	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
 
 
@@ -138,9 +163,38 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
 }
 
+void Object::OpagueDraw()
+{
+
+}
+
+bool Object::CompareDepth(const Object * const _left, const Object * const _right)
+{
+	if (_left->GetDepth() < _right->GetDepth())
+		return true;
+	else
+		return false;
+}
+
 bool Object::IsTransparent() const
 {
 	return mToVRAM_PS.renderSetting.y == 1;
+}
+
+float Object::GetDepth() const
+{
+	return mDepth;
+}
+
+XMFLOAT4 Object::GetPosition() const
+{
+	return XMFLOAT4(mToVRAM_VS.world(3, 0), mToVRAM_VS.world(3, 1), mToVRAM_VS.world(3, 2), mToVRAM_VS.world(3, 3));
+}
+
+XMVECTOR Object::GetPositionXM() const
+{
+	XMVECTOR out = XMVectorSet(mToVRAM_VS.world(3, 0), mToVRAM_VS.world(3, 1), mToVRAM_VS.world(3, 2), mToVRAM_VS.world(3, 3));
+	return out;
 }
 
 const Mesh* const Object::GetMesh() const
@@ -186,6 +240,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::sky_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::floor_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::wall_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::ice_texture = nullptr;
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::treeArray_texture = nullptr;
 
 
 Objects::Objects()
@@ -196,7 +251,7 @@ Objects::Objects()
 	defPlane_mesh = new Mesh();
 
 	def_material = new Material();
-	def_material->diffuseAlbedo = { 0.5f,0.5f,0.5f,1.0f };
+	def_material->diffuseAlbedo = { 1.0f,1.0f,1.0f,1.0f };
 	def_material->fresnelR0 = { 0,0,0 };
 	def_material->shininess = 0;
 }
@@ -266,6 +321,11 @@ ID3D11ShaderResourceView * Objects::GetIceTexture()
 	return ice_texture.Get();
 }
 
+ID3D11ShaderResourceView * Objects::GetTreeArrayTexture()
+{
+	return treeArray_texture.Get();
+}
+
 
 void Objects::LoadAssets(ID3D11Device* _device)
 {
@@ -282,6 +342,7 @@ void Objects::LoadAssets(ID3D11Device* _device)
 	HR(CreateDDSTextureFromFile(_device, L"../Models/checkboard.dds", nullptr, floor_texture.GetAddressOf()));
 	HR(CreateDDSTextureFromFile(_device, L"../Models/brick01.dds", nullptr,    wall_texture.GetAddressOf()));
 	HR(CreateDDSTextureFromFile(_device, L"../Models/ice.dds", nullptr, ice_texture.GetAddressOf()));
+	HR(CreateDDSTextureFromFile(_device, L"../Models/treearray.dds", nullptr, treeArray_texture.GetAddressOf()));
 
 
 }

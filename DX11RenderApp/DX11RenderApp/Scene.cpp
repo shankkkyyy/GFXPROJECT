@@ -1,6 +1,7 @@
 #include "Scene.h"
 #include "SkyBox.h"
 
+Scene* Scene::mBaseScene = nullptr;
 
 Scene::Scene(HINSTANCE _hInstance) : 
 	SceneRender(_hInstance) 
@@ -10,23 +11,35 @@ Scene::Scene(HINSTANCE _hInstance) :
 	mMainWndCaption = L"Scene_0";	
 
 	mShaders = new Shader();
-	mObjects = new std::vector<Object>();
 	mSkyBox = new SkyBox();
+	bEnable4xMsaa = true;
+	mBaseScene = this;
 }
 
 Scene::~Scene()
 {
 	delete mShaders;
-	delete mObjects;
 	delete mSkyBox;
-	delete mOpaqueIndices;
-	delete mTransparentIndices;
+
+	size_t i = 0;
+	for (; i < mOpagueObjs->size(); i++)
+	{
+		delete (*mOpagueObjs)[i];
+	}
+	delete mOpagueObjs;
+
+	for (i = 0; i < mTransparentObjs->size(); i++)
+	{
+		delete (*mTransparentObjs)[i];
+	}
+	delete mTransparentObjs;
 }
 
 bool Scene::InitApp()
 {
 	if (SceneRender::InitApp())
 	{
+
 		// Load Models and texture
 		Objects::LoadAssets(md3dDevice);
 
@@ -41,6 +54,10 @@ bool Scene::InitApp()
 
 		// build Geometry and push data into VRAM throught VB && IB buffer
 		BuildGeometry();
+
+		InitRenderSettings();
+
+
 		return true;
 	}
 	else
@@ -49,73 +66,79 @@ bool Scene::InitApp()
 	}
 }
 
+Scene * Scene::GetBaseScene()
+{
+	return mBaseScene;
+}
+
 void Scene::ObjInitAndEdit()
 {
 
 #pragma region Scene Setup
-
+	// set up the camera
 	GetMainCamera()->SetPosition(XMFLOAT3(0, 5, -50));
 
-	mObjects->resize(4);
+	mOpagueObjs = new std::vector<Object*>();
+	mTransparentObjs = new std::vector<Object*>();
 
 	// Surface
-	(*mObjects)[0].Edit(Objects::GetDefaultPlaneMesh(), nullptr, Objects::GetFloorTexture());
-	(*mObjects)[0].SetPosition(XMFLOAT3(0, -0.01f, 10));
-	(*mObjects)[0].SetScale(XMFLOAT3(200, 0.25f, 200));
-	(*mObjects)[0].SetTexTransform(5, 5);
+	Object* surface = new Object();
+	surface->SetName("surface");
+	surface->Edit(Objects::GetDefaultPlaneMesh(), nullptr, Objects::GetFloorTexture());
+	surface->SetPosition(XMFLOAT3(0, -0.01f, 10));
+	surface->SetScale(XMFLOAT3(200, 0.25f, 200));
+	surface->SetTexTransform(5, 5);
+	mOpagueObjs->push_back(surface);
+
 
 	// Car
-	(*mObjects)[1].Edit(Objects::GetCarMesh(), nullptr, Objects::GetCarTexture());
-	(*mObjects)[1].SetPosition(XMFLOAT3(0, 0, 5));
+	Object* car = new Object();
+	car->SetName("car");
+	car->Edit(Objects::GetCarMesh(), nullptr, Objects::GetCarTexture());
+	car->SetPosition(XMFLOAT3(0, 0, 5));
+	mOpagueObjs->push_back(car);
+
 
 	// transparent cube
-	(*mObjects)[2].Edit(Objects::GetDefaultCubeMesh(), nullptr, nullptr);
-	(*mObjects)[2].SetPosition(XMFLOAT3(0, 5, -15));
-	(*mObjects)[2].SetScale(XMFLOAT3(10, 10, 1));
-	(*mObjects)[2].SetDiffuseColor(DirectX::Colors::Cyan, 0.3f);
-	(*mObjects)[2].SetTransparent(true);
+	Object* transparentCube = new Object();
+	transparentCube->SetName("transparentCube");
+	transparentCube->Edit(Objects::GetDefaultCubeMesh(), nullptr, nullptr);
+	transparentCube->SetPosition(XMFLOAT3(0, 5, -15));
+	transparentCube->SetScale(XMFLOAT3(10, 10, 1));
+	transparentCube->SetDiffuseColor(DirectX::Colors::Cyan, 0.3f);
+	transparentCube->SetTransparent(true);
+	mTransparentObjs->push_back(transparentCube);
 
 	// mirror
-	(*mObjects)[3].Edit(Objects::GetDefaultCubeMesh(), nullptr, Objects::GetIceTexture());
-	(*mObjects)[3].SetPosition(XMFLOAT3(-30 , 15, 0));
-	(*mObjects)[3].SetScale(XMFLOAT3(1, 30, 50));
-	(*mObjects)[3].SetTexTransform(3, 5);
-	(*mObjects)[3].SetDiffuseAlpha(0.3f);
-	(*mObjects)[3].SetTransparent(true);
+	Object* mirror = new Object();
+	mirror->SetName("mirror");
+	mirror->Edit(Objects::GetDefaultCubeMesh(), nullptr, Objects::GetIceTexture());
+	mirror->SetPosition(XMFLOAT3(-30 , 15, 0));
+	mirror->SetScale(XMFLOAT3(1, 30, 50));
+	mirror->SetTexTransform(3, 5);
+	mirror->SetDiffuseAlpha(0.3f);
+	mirror->SetTransparent(true);
+	mTransparentObjs->push_back(mirror);
 
-#pragma endregion
 
-#pragma region  Grouping the obj by transparency
-	bool IsTransparent = false;
-	for (size_t iObj = 0; iObj < mObjects->size(); iObj++)
+	mTreeAmount = 15;
+	mTrees = new VertexBB[mTreeAmount];
+	float treeSize = 20;
+
+	for (size_t i = 0; i < mTreeAmount; i++)
 	{
-		IsTransparent = (*mObjects)[iObj].IsTransparent();
-		if (IsTransparent)
-			mTransparentAmount++;
-		else
-			mOpagueAmount++;
+		mTrees[i].root.x = (MathHelper::RandF() - 0.5f) * 180;
+		mTrees[i].root.y = 0;
+
+
+		mTrees[i].root.z = (float)(rand() % 50 )+ 50;
+		mTrees[i].size.x = MathHelper::Clamp(MathHelper::RandF(), 0.5f, 1.0f) * treeSize;
+		mTrees[i].size.y = MathHelper::Clamp(MathHelper::RandF(), 0.7f, 1.3f) * treeSize;
 	}
 
-	mOpaqueIndices = new UINT[mOpagueAmount];
-	mTransparentIndices = new UINT[mTransparentAmount];
-
-	mOpagueAmount = 0;
-	mTransparentAmount = 0;
-
-	for (size_t iObj = 0; iObj < mObjects->size(); iObj++)
-	{
-		IsTransparent = (*mObjects)[iObj].IsTransparent();
-		if (IsTransparent)
-		{
-			mTransparentIndices[mTransparentAmount] = (UINT)iObj;
-			mTransparentAmount++;
-		}
-		else
-		{
-			mOpaqueIndices[mOpagueAmount] = (UINT)iObj;
-			mOpagueAmount++;
-		}
-	}
+	mTreeToVRAM.material = *Objects::GetDefMaterial();
+	mTreeToVRAM.renderSetting.x = 1;
+	mTreeToVRAM.renderSetting.y = 0;
 
 #pragma endregion
 
@@ -176,11 +199,17 @@ void Scene::BuildGeometry()
 
 #pragma region Gather all vertices and indices for scene objectes into to two separate array
 	// Get total unique vertex size, and indices size 
-	for (i = 0; i < mObjects->size(); i++)
+	for (i = 0; i < mOpagueObjs->size(); i++)
 	{
-		objVerticeSize += (UINT) (*mObjects)[i].GetMesh()->vertices.size();
-		objIndicesSize += (UINT)(*mObjects)[i].GetMesh()->indices.size();
+		objVerticeSize += (UINT) (*mOpagueObjs)[i]->GetMesh()->vertices.size();
+		objIndicesSize += (UINT)(*mOpagueObjs)[i]->GetMesh()->indices.size();
 	}
+	for (i = 0; i < mTransparentObjs->size(); i++)
+	{
+		objVerticeSize += (UINT)(*mTransparentObjs)[i]->GetMesh()->vertices.size();
+		objIndicesSize += (UINT)(*mTransparentObjs)[i]->GetMesh()->indices.size();
+	}
+
 
 	// load all mesh into a vertex array
 	// load all indices into an indices array
@@ -188,33 +217,55 @@ void Scene::BuildGeometry()
 	UINT* objIndices = new UINT[objIndicesSize];
 	Vertex* objVertices = new Vertex[objVerticeSize];
 
-	for (i = 0; i < mObjects->size(); i++)
+	for (i = 0; i < mOpagueObjs->size(); i++)
 	{
-		size_t vlength = (*mObjects)[i].GetMesh()->vertices.size();
+		size_t vlength = (*mOpagueObjs)[i]->GetMesh()->vertices.size();
 		for (size_t iV = 0; iV < vlength; iV++)
 		{
-			objVertices[iV + vOffset] = (*mObjects)[i].GetMesh()->vertices[iV];
+			objVertices[iV + vOffset] = (*mOpagueObjs)[i]->GetMesh()->vertices[iV];
 		}
-
-
 		// reset length to indices size
-		size_t ilength = (*mObjects)[i].GetMesh()->indices.size();
+		size_t ilength = (*mOpagueObjs)[i]->GetMesh()->indices.size();
 		for (size_t iI = 0; iI < ilength; iI++)
 		{
-			objIndices[iI + iOffset] = (*mObjects)[i].GetMesh()->indices[iI];
+			objIndices[iI + iOffset] = (*mOpagueObjs)[i]->GetMesh()->indices[iI];
 		}
 
 		// get the Index && vertex offset for index draw within one buffer
-		(*mObjects)[i].SortIndex((UINT)iOffset,(UINT)vOffset);
+		(*mOpagueObjs)[i]->SetIndexOffset((UINT)iOffset,(UINT)vOffset);
 
 		// update offset
 		vOffset += vlength;
 		iOffset += ilength;
 	}
 
+	for (i = 0; i < mTransparentObjs->size(); i++)
+	{
+		size_t vlength = (*mTransparentObjs)[i]->GetMesh()->vertices.size();
+		for (size_t iV = 0; iV < vlength; iV++)
+		{
+			objVertices[iV + vOffset] = (*mTransparentObjs)[i]->GetMesh()->vertices[iV];
+		}
+		// reset length to indices size
+		size_t ilength = (*mTransparentObjs)[i]->GetMesh()->indices.size();
+		for (size_t iI = 0; iI < ilength; iI++)
+		{
+			objIndices[iI + iOffset] = (*mTransparentObjs)[i]->GetMesh()->indices[iI];
+		}
+
+		// get the Index && vertex offset for index draw within one buffer
+		(*mTransparentObjs)[i]->SetIndexOffset((UINT)iOffset, (UINT)vOffset);
+
+		// update offset
+		vOffset += vlength;
+		iOffset += ilength;
+	}
+
+
 #pragma endregion
 
-#pragma region Create Buffer and push data into VB and IB
+
+#pragma region Create Buffer and push data into VB and IB for non - geometry shader generated obj
 	// VB
 	ZeroMemory(&vbd, sizeof(D3D11_BUFFER_DESC));
 	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -225,7 +276,6 @@ void Scene::BuildGeometry()
 	vbd.StructureByteStride = 0;
 
 	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
-	//_initData.pSysMem = mMeshToDraw->vertices.data();
 	initData.pSysMem = objVertices;
 
 	HR(md3dDevice->CreateBuffer(&vbd, &initData, mVB.GetAddressOf()));
@@ -243,10 +293,36 @@ void Scene::BuildGeometry()
 	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
 	initData.pSysMem = objIndices;
 	HR(md3dDevice->CreateBuffer(&ibd, &initData, mIB.GetAddressOf()));
+
+#pragma endregion
+
+#pragma region Create Buffer and push data into VB and IB for geometry shader generated obj
+
+	ZeroMemory(&vbd, sizeof(D3D11_BUFFER_DESC));
+	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbd.ByteWidth = mTreeAmount * sizeof(VertexBB);
+	vbd.Usage = D3D11_USAGE_IMMUTABLE;
+	vbd.CPUAccessFlags = 0;
+	vbd.MiscFlags = 0;
+	vbd.StructureByteStride = 0;
+
+	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
+	initData.pSysMem = mTrees;
+
+	HR(md3dDevice->CreateBuffer(&vbd, &initData, mGeoVB.GetAddressOf()));
+
 #pragma endregion
 
 	delete[] objVertices;
 	delete[] objIndices;
+	delete[] mTrees;
+
+}
+
+void Scene::InitRenderSettings()
+{
+	ID3D11SamplerState* arr[2] = { mSSs[0].Get(), mSSs[1].Get() };
+	md3dImmediateContext->PSSetSamplers(0, _countof(arr), arr);
 }
 
 void Scene::CreateConstantBuffer()
@@ -269,6 +345,9 @@ void Scene::CreateConstantBuffer()
 
 	cbd.ByteWidth = sizeof(PSCBPerObj);
 	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerObj_PS.GetAddressOf()));
+	
+	cbd.ByteWidth = sizeof(GSCBPerFrame);
+	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerFrame_GS.GetAddressOf()));
 
 }
 
@@ -310,6 +389,8 @@ void Scene::UpdateScene(float _deltaTime)
 
 void Scene::DrawScene()
 {
+
+
 	const Camera* const mainCamera = GetMainCamera();
 	XMFLOAT3 camPos = mainCamera->GetPosition();
 
@@ -317,16 +398,12 @@ void Scene::DrawScene()
 	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Black);
 	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-	// Render setting
-	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	md3dImmediateContext->PSSetSamplers(0, 1, mSS4xAnisotropyWRAP.GetAddressOf());
-
 	// update frame cbuffer for PS and VS
 	D3D11_MAPPED_SUBRESOURCE mSource;
 
 #pragma region   Upload PerFrame cBuffer VS
 	// Update
-	XMStoreFloat4x4(&mToVRAMPerFrame_VS.camPosTransform, XMMatrixTranspose(XMMatrixTranslation(camPos.x, camPos.y, camPos.z) * mainCamera->GetViewProj()));
+	XMStoreFloat4x4(&mToVRAMPerFrame_VS.camPosTransform, XMMatrixTranspose(XMMatrixTranslation(camPos.x, camPos.y, camPos.z) * mainCamera->GetViewProjXM()));
 	
 	// mapping
 	ZeroMemory(&mSource, sizeof(mSource));
@@ -339,9 +416,24 @@ void Scene::DrawScene()
 
 #pragma endregion
 
+#pragma region  Upload PerFrame cBuffer GS
+
+	mToVRAMPerFrame_GS.eyePosition = { camPos.x, camPos.y, camPos.z, 1.0f };
+	XMStoreFloat4x4(&mToVRAMPerFrame_GS.viewProj, XMMatrixTranspose(mainCamera->GetViewProjXM()));
+
+	ZeroMemory(&mSource, sizeof(mSource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_GS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
+	memcpy(mSource.pData, &mToVRAMPerFrame_GS, sizeof(mToVRAMPerFrame_GS));
+	md3dImmediateContext->Unmap(mCBPerFrame_GS.Get(), 0);
+
+	// Apply
+	md3dImmediateContext->GSSetConstantBuffers(0, 1, mCBPerFrame_GS.GetAddressOf());
+
+#pragma endregion
+
 #pragma region Upload PerFrame cBuffer PS
 
-	mToVRAMPerFrame_PS.eyePosition = GetMainCamera()->GetPosition();
+	mToVRAMPerFrame_PS.eyePosition = camPos;
 
 	ZeroMemory(&mSource, sizeof(mSource));
 	HR(md3dImmediateContext->Map(mCBPerFrame_PS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
@@ -352,6 +444,8 @@ void Scene::DrawScene()
 	md3dImmediateContext->PSSetConstantBuffers(0, 1, mCBPerFrame_PS.GetAddressOf());
 
 #pragma endregion
+
+
 
 
 	DrawOpaques();
@@ -365,9 +459,13 @@ void Scene::DrawScene()
 void Scene::DrawOpaques()
 {
 
+	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	const Camera* const mainCamera = GetMainCamera();
 
 	UINT stride, offset;
+
+#pragma region  Draw non - geometry shader generated objs
 	stride = sizeof(Vertex);
 	offset = 0;
 
@@ -379,13 +477,57 @@ void Scene::DrawOpaques()
 	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32IL());
 
 
+
 	// 2. Draw Every Object
 	UINT index = 0;
-	for (size_t iOpa = 0; iOpa < mOpagueAmount; iOpa++)
+	for (size_t iOpa = 0; iOpa < mOpagueObjs->size(); iOpa++)
 	{
-		index = mOpaqueIndices[iOpa];
-		(*mObjects)[index].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		(*mOpagueObjs)[iOpa]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
 	}
+
+#pragma endregion
+
+#pragma region  Draw Geometry shader generated objs
+
+
+	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+	stride = sizeof(VertexBB);
+	offset = 0;
+	md3dImmediateContext->IASetInputLayout(mShaders->GetPosSize());
+
+	md3dImmediateContext->IASetVertexBuffers(0, 1, mGeoVB.GetAddressOf(), &stride, &offset);
+	// set shaders
+	md3dImmediateContext->VSSetShader(mShaders->GetBBVS(), 0, 0);
+	md3dImmediateContext->GSSetShader(mShaders->GetBBGS(), 0, 0);
+	md3dImmediateContext->PSSetShader(mShaders->GetBBPS(), 0, 0);
+	// set InputLayout
+
+	// update PSCB
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	HR(md3dImmediateContext->Map(mCBPerObj_PS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mTreeToVRAM, sizeof(mTreeToVRAM));
+	md3dImmediateContext->Unmap(mCBPerObj_PS.Get(), 0);
+	md3dImmediateContext->PSSetConstantBuffers(1, 1, mCBPerObj_PS.GetAddressOf());
+
+	// Get Texture
+	ID3D11ShaderResourceView* treeArrayTex = Objects::GetTreeArrayTexture();
+	md3dImmediateContext->PSSetShaderResources(2, 1, &treeArrayTex);
+
+	// Draw
+
+
+	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	md3dImmediateContext->OMSetBlendState(mBSAlphaToCoverage.Get(), blendFactor, 0xffffffff);
+	md3dImmediateContext->Draw(mTreeAmount, 0);
+	md3dImmediateContext->OMSetBlendState(0, blendFactor, 0xffffffff);
+
+
+	// restore topology
+	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+#pragma endregion
 
 }
 
@@ -421,73 +563,70 @@ void Scene::DrawTransparents()
 	float bf[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 #pragma region Using Stencil
+	//// 1. draw mirror stencil buffer
+	//md3dImmediateContext->OMSetBlendState(mBSNoRenderTargetWrite.Get(), bf, 0xffffffff);
+	//md3dImmediateContext->OMSetDepthStencilState(mDSStencilMark.Get(), 0x01);
+
+	//(*mObjects)[3]. (md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+
+	//md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
+	//md3dImmediateContext->OMSetDepthStencilState(mDSReflection.Get(), 0x01);
+
+	//md3dImmediateContext->RSSetState(mRSFrontCull.Get());
+
+	//// 2. draw mirrored car
+	//XMVECTOR mirrorPlane = XMVectorSet(1, 0, 0, 30);
+	//XMMATRIX prevWorldMatrix = (*mObjects)[1].GetWorldMatrixXM();
+	//(*mOpagueObjs)[1]->SetWorldMatrix(prevWorldMatrix * XMMatrixReflect(mirrorPlane));
+	//(*mOpagueObjs)[1]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+	//(*mOpagueObjs)[1]->SetWorldMatrix(prevWorldMatrix);
+
+	//md3dImmediateContext->OMSetDepthStencilState(nullptr, 0);
+	////3. draw mirror
 
 
-	// 1. draw mirror stencil buffer
-	md3dImmediateContext->OMSetBlendState(mBSNoRenderTargetWrite.Get(), bf, 0xffffffff);
-	md3dImmediateContext->OMSetDepthStencilState(mDSStencilMark.Get(), 0x01);
-
-	(*mObjects)[3].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
-
-	md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
-	md3dImmediateContext->OMSetDepthStencilState(mDSReflection.Get(), 0x01);
-	md3dImmediateContext->RSSetState(mRSFrontCull.Get());
-
-	// 2. draw mirrored car
-	XMVECTOR mirrorPlane = XMVectorSet(1, 0, 0, 30);
-	XMMATRIX prevWorldMatrix = (*mObjects)[1].GetWorldMatrixXM();
-	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix * XMMatrixReflect(mirrorPlane));
-	(*mObjects)[1].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
-	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix);
-
-	md3dImmediateContext->OMSetDepthStencilState(nullptr, 0);
-
-	// 3. draw mirror
-
-
-	// 4. restore
+	////4. restore
 
 
 #pragma endregion
 
 	md3dImmediateContext->OMSetBlendState(mBSTransparent.Get(), bf, 0xffffffff);
 
-	// Draw Front face first
-	md3dImmediateContext->RSSetState(mRSFrontCull.Get());
-	size_t iTrans = 0;
-	UINT index = 0;
-	for (; iTrans < mTransparentAmount; iTrans++)
+	int size = (int)mTransparentObjs->size();
+	int iTrans = 0;
+
+	/* sort the transparent objects by depth */
+	// update the depth
+	for ( ; iTrans < size; iTrans++)
 	{
-		index = mTransparentIndices[iTrans];
-		(*mObjects)[index].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		(*mTransparentObjs)[iTrans]->UpdateDepth(mainCamera);
 	}
 
-	// Draw back face 
-	md3dImmediateContext->RSSetState(nullptr);
-	for (iTrans = 0; iTrans < mTransparentAmount; iTrans++)
+	// sort the depth from close to far
+	std::sort(mTransparentObjs->begin(), mTransparentObjs->end(), Object::CompareDepth);
+
+	// draw from far to close
+	for (iTrans = size - 1; iTrans >= 0 ; iTrans--)
 	{
-		index = mTransparentIndices[iTrans];
-		(*mObjects)[index].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		// Draw Front face first
+		md3dImmediateContext->RSSetState(mRSFrontCull.Get());
+		(*mTransparentObjs)[iTrans]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		// Draw Back face
+		md3dImmediateContext->RSSetState(nullptr);
+		(*mTransparentObjs)[iTrans]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
 	}
-
-
 
 	// draw a car shadow
-	md3dImmediateContext->PSSetShader(mShaders->GetObjShaderPS(), 0, 0);
-
-	XMVECTOR shadowPlane = XMVectorSet(0, 1, 0, 0);
-	XMVECTOR lightDirection = -XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction);
-	XMMATRIX shadowMatrix = XMMatrixShadow(shadowPlane, lightDirection);
-
-	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix * shadowMatrix);
-
-	md3dImmediateContext->OMSetDepthStencilState(mDSNoDoubleBlend.Get(), 0);
-	(*mObjects)[1].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
-
-	(*mObjects)[1].SetWorldMatrix(prevWorldMatrix);
-
+	//md3dImmediateContext->PSSetShader(mShaders->GetObjShaderPS(), 0, 0);
+	//XMVECTOR shadowPlane = XMVectorSet(0, 1, 0, 0);
+	//XMVECTOR lightDirection = -XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction);
+	//XMMATRIX shadowMatrix = XMMatrixShadow(shadowPlane, lightDirection);
+	//(*mObjects)[1].SetWorldMatrix(prevWorldMatrix * shadowMatrix);
+	//md3dImmediateContext->OMSetDepthStencilState(mDSNoDoubleBlend.Get(), 0);
+	//(*mObjects)[1].Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+	//(*mObjects)[1].SetWorldMatrix(prevWorldMatrix);
 	//restore blend state
-
 	md3dImmediateContext->OMSetDepthStencilState(nullptr, 0);
 	md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
 }
+
