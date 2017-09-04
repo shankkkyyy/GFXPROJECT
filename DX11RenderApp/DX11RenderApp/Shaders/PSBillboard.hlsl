@@ -44,6 +44,4 @@ float4 main(GeoOutBB pin)  : SV_TARGET
     //litColor.rgb = FogEffect(litColor.rgb, toEyeDistance);
     litColor.a = mat.diffuseAlbedo.a;
     return litColor;
-
-
 }

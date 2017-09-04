@@ -12,10 +12,6 @@ Object::Object()
 	// world
 	XMStoreFloat4x4(&mWorldMatrix, I);
 
-	// worldInvTranspose
-	XMVECTOR det = XMMatrixDeterminant(I);
-	XMStoreFloat4x4(&mToVRAM_VS.worldInvTranspose, XMMatrixInverse(&det, I));
-
 	// texTransform
 	XMStoreFloat4x4(&mToVRAM_VS.texTransform, I);
 
@@ -27,27 +23,25 @@ Object::~Object()
 {
 }
 
-void Object::Edit(Mesh * _mesh, Material* _material, ID3D11ShaderResourceView * _mTexMap)
+
+void Object::SetPS(Scene* const _app)
 {
-	mMesh     = _mesh;
 
-	if (_material == nullptr)
-		mToVRAM_PS.material = *Objects::GetDefMaterial();
-	else
-		mToVRAM_PS.material = *_material;
-
-	if (_mTexMap != nullptr)
+	UINT texCount =(UINT) mTexMaps.size();
+	ID3D11DeviceContext* devContext = _app->GetDeviceContext();
+	switch (texCount)
 	{
-		mTexMap = _mTexMap;
-		mToVRAM_PS.renderSetting.x = 1;
-	}
-	else
-	{
-		mToVRAM_PS.renderSetting.x = 0;
+	case 0:
+		devContext->PSSetShader(_app->GetShaders()->GetPSt0(), nullptr, 0);
+		break;
+	case 1:
+		devContext->PSSetShader(_app->GetShaders()->GetPSd1(), nullptr, 0);
+		break;
+	case 2:
+		devContext->PSSetShader(_app->GetShaders()->GetPSd2(), nullptr, 0);
+		break;
 	}
 }
-
-
 
 void Object::SetIndexOffset(UINT _indexOffset, UINT _vertexOffset)
 {
@@ -55,11 +49,32 @@ void Object::SetIndexOffset(UINT _indexOffset, UINT _vertexOffset)
 	mVertexOffset = _vertexOffset;
 }
 
+void Object::Edit(Mesh * const _mesh, const Material * const _material, ID3D11ShaderResourceView * const* _mTexMap, UINT _texCount)
+{
+	mMesh = _mesh;
+
+	if (_material == nullptr)
+		mToVRAM_PS.material = *Objects::GetDefMaterial();
+	else
+		mToVRAM_PS.material = *_material;
+
+	if (_texCount == 0)
+	{
+		mToVRAM_PS.renderSetting.x = 0;
+		mTexMaps.clear();
+	}
+	else
+	{
+		mTexMaps.resize(_texCount);
+		memcpy(mTexMaps.data(), _mTexMap, sizeof(ID3D11ShaderResourceView*)*_texCount);
+		mToVRAM_PS.renderSetting.x = 1;
+	}
+}
+
 void Object::SetScale(const XMFLOAT3 & _xyz)
 {
 	XMMATRIX scale = XMMatrixScaling(_xyz.x, _xyz.y, _xyz.z);
 	XMStoreFloat4x4(&mWorldMatrix, XMMatrixMultiply(scale, XMLoadFloat4x4(&mWorldMatrix)));
-	bWorldMatrixIsChanged = true;
 }
 
 void Object::SetPosition(const XMFLOAT3 & _pos)
@@ -67,7 +82,6 @@ void Object::SetPosition(const XMFLOAT3 & _pos)
 	mWorldMatrix(3, 0) = _pos.x;
 	mWorldMatrix(3, 1) = _pos.y;
 	mWorldMatrix(3, 2) = _pos.z;
-	bWorldMatrixIsChanged = true;
 }
 
 void Object::SetTexTransform(float _x, float _y)
@@ -79,7 +93,6 @@ void Object::SetTexTransform(float _x, float _y)
 void Object::SetWorldMatrix(CXMMATRIX _matrix)
 {
 	XMStoreFloat4x4(&mWorldMatrix, _matrix);
-	bWorldMatrixIsChanged = true;
 }
 
 void Object::SetName(const char* const _val)
@@ -131,11 +144,57 @@ void Object::Update(float _deltaTime)
 
 }
 
+void Object::Draw()
+{
+	Scene* const app = Scene::GetBaseScene();
+	ID3D11DeviceContext* devContext = app->GetDeviceContext();
+
+	// set PS
+	SetPS(app);
+
+	// set texture
+	devContext->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
+
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+
+#pragma region Upload cBuffer VS
+
+	// set VS cbuffer
+	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
+	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
+
+	// wvp, must be update every frame
+	XMMATRIX wvp = world * app->GetMainCamera()->GetViewProjXM();
+	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
+
+
+	ID3D11Buffer* _VSCB = app->GetVSCBPerObj();
+	ID3D11Buffer* _PSCB = app->GetPSCBPerObj();
+	// map VS cbuffer
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+	HR(app->GetDeviceContext()->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mToVRAM_VS, sizeof(mToVRAM_VS));
+	devContext->Unmap(_VSCB, 0);
+	devContext->VSSetConstantBuffers(1, 1, &_VSCB);
+
+
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	HR(devContext->Map(_PSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mToVRAM_PS, sizeof(mToVRAM_PS));
+	devContext->Unmap(_PSCB, 0);
+
+	devContext->PSSetConstantBuffers(1, 1, &_PSCB);
+#pragma endregion
+
+	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
+}
+
 void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11Buffer* _PSCB, const Camera* const _mCam)
 {
 
 	// set texture
-	devContext->PSSetShaderResources(0, 1, &mTexMap);
+	devContext->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
 
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 
@@ -148,23 +207,11 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 	XMMATRIX wvp = world * _mCam->GetViewProjXM();
 	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
 
-
-	if (bWorldMatrixIsChanged)
-	{
-		XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
-		world.r[3] = XMVectorSet(0, 0, 0, 1);
-		// worldInvTranspose
-		XMVECTOR det = XMMatrixDeterminant(world);
- 		XMStoreFloat4x4(&mToVRAM_VS.worldInvTranspose, XMMatrixInverse(&det, world));
-		bWorldMatrixIsChanged = false;
-	}
-
 	// map VS cbuffer
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	HR(devContext->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 	memcpy(mapResource.pData, &mToVRAM_VS, sizeof(mToVRAM_VS));
 	devContext->Unmap(_VSCB, 0);
-
 	devContext->VSSetConstantBuffers(1, 1, &_VSCB);
 
 	
@@ -183,12 +230,16 @@ void Object::DrawInstance()
 {
 
 	Scene* const app = Scene::GetBaseScene();
-	// Set Texture
-	app->GetDeviceContext()->PSSetShaderResources(0, 1, &mTexMap);
 
+
+	// set PS
+	SetPS(app);
+
+	// Set Texture
+	app->GetDeviceContext()->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
 	// updating CB for Ps
 	D3D11_MAPPED_SUBRESOURCE mapResource;
-	ID3D11Buffer* PSCBPerObj = app->GetPSCB();
+	ID3D11Buffer* PSCBPerObj = app->GetPSCBPerObj();
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	HR(app->GetDeviceContext()->Map(PSCBPerObj, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 	memcpy(mapResource.pData, &mToVRAM_PS, sizeof(mToVRAM_PS));
@@ -200,7 +251,6 @@ void Object::DrawInstance()
 	app->GetDeviceContext()->DrawIndexedInstanced(
 		(UINT)mMesh->indices.size(), mInstanceAmount, mIndexOffset, mVertexOffset, 0);
 }
-
 
 bool Object::CompareDepth(const Object * const _left, const Object * const _right)
 {
@@ -263,7 +313,6 @@ void Object::SetTransparent(bool _val)
 {
 	mToVRAM_PS.renderSetting.y = _val;
 }
-
 
 
 

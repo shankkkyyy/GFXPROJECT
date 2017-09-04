@@ -83,7 +83,7 @@ void SkyBox::Draw(ID3D11DeviceContext * _ImmediateContext)
 	_ImmediateContext->IASetInputLayout(mIL);
 	
 	// texture
-	_ImmediateContext->PSSetShaderResources(1, 1, &mMap);
+	_ImmediateContext->PSSetShaderResources(10, 1, &mMap);
 
 	// draw
 	_ImmediateContext->DrawIndexed(36, 0, 0);

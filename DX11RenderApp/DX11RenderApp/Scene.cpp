@@ -80,9 +80,21 @@ Scene * Scene::GetBaseScene()
 	return mBaseScene;
 }
 
-ID3D11Buffer * Scene::GetPSCB()
+
+
+ID3D11Buffer * Scene::GetPSCBPerObj() const
 {
 	return mCBPerObj_PS.Get();
+}
+
+ID3D11Buffer * Scene::GetVSCBPerObj() const
+{
+	return mCBPerObj_VS.Get();
+}
+
+Shader * Scene::GetShaders() const
+{
+	return mShaders;
 }
 
 void Scene::ObjInitAndEdit()
@@ -92,6 +104,9 @@ void Scene::ObjInitAndEdit()
 	// set up the camera
 	GetMainCamera()->SetPosition(XMFLOAT3(0, 5, -50));
 
+
+	std::vector<ID3D11ShaderResourceView*> textures;
+
 	mOpagueObjs = new std::vector<Object*>();
 	mTransparentObjs = new std::vector<Object*>();
 	mInstances = new std::vector<Object*>();
@@ -99,7 +114,10 @@ void Scene::ObjInitAndEdit()
 	// Surface
 	Object* surface = new Object();
 	surface->SetName("surface");
-	surface->Edit(Objects::GetDefaultPlaneMesh(), nullptr, Objects::GetFloorTexture());
+	textures.clear();
+	textures.resize(1);
+	textures[0] = Objects::GetFloorTexture();
+	surface->Edit(Objects::GetDefaultPlaneMesh(), nullptr, textures.data(), (UINT) textures.size());
 	surface->SetPosition(XMFLOAT3(0, -0.01f, 10));
 	surface->SetScale(XMFLOAT3(200, 0.25f, 200));
 	surface->SetTexTransform(5, 5);
@@ -108,8 +126,8 @@ void Scene::ObjInitAndEdit()
 	// sphere
 	Object* sphere = new Object();
 	sphere->SetName("sphere");
-	sphere->Edit(Objects::GetSphereMesh(), Objects::GetSilverMaterial(), nullptr);
-	sphere->SetPosition(XMFLOAT3(-100, 10, 10));
+	sphere->Edit(Objects::GetSphereMesh(), Objects::GetSilverMaterial(), nullptr, 0);
+	sphere->SetPosition(XMFLOAT3(-100, 10, -30));
 	sphere->SetScale(XMFLOAT3(0.5f, 0.5f, 0.5f));
 	sphere->SetInstanceCount(10);
 	mInstances->push_back(sphere);
@@ -117,7 +135,10 @@ void Scene::ObjInitAndEdit()
 	// Car
 	Object* car = new Object();
 	car->SetName("car");
-	car->Edit(Objects::GetCarMesh(), nullptr, Objects::GetCarTexture());
+	textures.clear();
+	textures.resize(1);
+	textures[0] = Objects::GetCarTexture();
+	car->Edit(Objects::GetCarMesh(), nullptr, textures.data(), (UINT)textures.size());
 	car->SetPosition(XMFLOAT3(0, 0, 5));
 	car->Rotate(0, 90, 0);
 	mOpagueObjs->push_back(car);
@@ -126,7 +147,7 @@ void Scene::ObjInitAndEdit()
 	// transparent cube
 	Object* transparentCube = new Object();
 	transparentCube->SetName("transparentCube");
-	transparentCube->Edit(Objects::GetDefaultCubeMesh(), nullptr, nullptr);
+	transparentCube->Edit(Objects::GetDefaultCubeMesh(), nullptr, nullptr, 0);
 	transparentCube->SetPosition(XMFLOAT3(0, 5, -15));
 	transparentCube->SetScale(XMFLOAT3(10, 10, 1));
 	transparentCube->SetDiffuseColor(DirectX::Colors::Cyan, 0.3f);
@@ -135,7 +156,7 @@ void Scene::ObjInitAndEdit()
 
 	Object* transparentSphere = new Object();
 	transparentSphere->SetName("transparentSphere");
-	transparentSphere->Edit(Objects::GetSphereMesh(), nullptr, nullptr);
+	transparentSphere->Edit(Objects::GetSphereMesh(), nullptr, nullptr, 0);
 	transparentSphere->SetPosition(XMFLOAT3(30, 10, 0));
 	transparentSphere->SetDiffuseColor(DirectX::Colors::RoyalBlue, 0.3f);
 	transparentSphere->SetTransparent(true);
@@ -144,13 +165,43 @@ void Scene::ObjInitAndEdit()
 	// mirror
 	Object* mirror = new Object();
 	mirror->SetName("mirror");
-	mirror->Edit(Objects::GetDefaultCubeMesh(), nullptr, Objects::GetIceTexture());
-	mirror->SetPosition(XMFLOAT3(-30 , 15, 0));
-	mirror->SetScale(XMFLOAT3(1, 30, 50));
+	textures.clear();
+	textures.resize(1);
+	textures[0] = Objects::GetIceTexture();
+	mirror->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size());
+	mirror->SetPosition(XMFLOAT3(-30 , 7.5f, 0));
+	mirror->SetScale(XMFLOAT3(1, 15, 25));
 	mirror->SetTexTransform(3, 5);
 	mirror->SetDiffuseAlpha(0.3f);
 	mirror->SetTransparent(true);
 	mTransparentObjs->push_back(mirror);
+
+
+	// IceWall
+	Object* wall = new Object();
+	wall->SetName("Wall");
+	textures.clear();
+	textures.resize(1);
+	textures[0] = Objects::GetWallTexture();
+	wall->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size());
+	wall->SetPosition(XMFLOAT3(-40, 7.5f, 0));
+	wall->SetScale(XMFLOAT3(1, 15, 25));
+	wall->SetTexTransform(3, 5);
+	mOpagueObjs->push_back(wall);
+
+
+	// IceWall
+	Object* IceWall = new Object();
+	IceWall->SetName("IceWall");
+	textures.clear();
+	textures.resize(2);
+	textures[0] = Objects::GetWallTexture();
+	textures[1] = Objects::GetIceTexture();
+	IceWall->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size());
+	IceWall->SetPosition(XMFLOAT3(-50, 7.5f, 0));
+	IceWall->SetScale(XMFLOAT3(1, 15, 25));
+	IceWall->SetTexTransform(3, 5);
+	mOpagueObjs->push_back(IceWall);
 
 
 	// build instance data
@@ -424,8 +475,6 @@ void Scene::UpdateScene(float _deltaTime)
 
 void Scene::DrawScene()
 {
-
-
 	const Camera* const mainCamera = GetMainCamera();
 	XMFLOAT3 camPos = mainCamera->GetPosition();
 
@@ -509,13 +558,15 @@ void Scene::DrawOpaques()
 	md3dImmediateContext->IASetVertexBuffers(0, 1, mVB.GetAddressOf(), &stride, &offset);
 	md3dImmediateContext->IASetIndexBuffer(mIB.Get(), DXGI_FORMAT_R32_UINT, 0);
 	md3dImmediateContext->VSSetShader(mShaders->GetObjVS(), 0, 0);
-	md3dImmediateContext->PSSetShader(mShaders->GetObjPS(), 0, 0);
+	//md3dImmediateContext->PSSetShader(mShaders->GetPSt0(), 0, 0);
 	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32IL());
 
 	// 2. Draw Every Object
 	for (size_t iOpa = 0; iOpa < mOpagueObjs->size(); iOpa++)
 	{
-		(*mOpagueObjs)[iOpa]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		//(*mOpagueObjs)[iOpa]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		(*mOpagueObjs)[iOpa]->Draw();
+
 	}
 
 #pragma endregion
@@ -530,7 +581,7 @@ void Scene::DrawOpaques()
 	md3dImmediateContext->IASetVertexBuffers(0, 2, vbs, strides, offsets);
 	md3dImmediateContext->IASetIndexBuffer(mIB.Get(), DXGI_FORMAT_R32_UINT, 0);
 	md3dImmediateContext->VSSetShader(mShaders->GetInstVS(), 0, 0);
-	md3dImmediateContext->PSSetShader(mShaders->GetObjPS(), 0, 0);
+
 	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32ILInst());
 
 	for (size_t iInst = 0; iInst < mInstances->size(); iInst++)
@@ -540,7 +591,6 @@ void Scene::DrawOpaques()
 
 
 #pragma endregion
-
 
 #pragma region  Draw Geometry shader generated objs
 
@@ -567,7 +617,7 @@ void Scene::DrawOpaques()
 
 	// Get Texture
 	ID3D11ShaderResourceView* treeArrayTex = Objects::GetTreeArrayTexture();
-	md3dImmediateContext->PSSetShaderResources(2, 1, &treeArrayTex);
+	md3dImmediateContext->PSSetShaderResources(11, 1, &treeArrayTex);
 
 	// Draw
 
@@ -615,7 +665,7 @@ void Scene::DrawTransparents()
 	md3dImmediateContext->IASetVertexBuffers(0, 1, mVB.GetAddressOf(), &stride, &offset);
 	md3dImmediateContext->IASetIndexBuffer(mIB.Get(), DXGI_FORMAT_R32_UINT, 0);
 	md3dImmediateContext->VSSetShader(mShaders->GetObjVS(), 0, 0);
-	md3dImmediateContext->PSSetShader(mShaders->GetObjPS(), 0, 0);
+	md3dImmediateContext->PSSetShader(mShaders->GetPSt0(), 0, 0);
 	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32IL());
 
 	// 2. Draw Every transparent Object
@@ -669,10 +719,10 @@ void Scene::DrawTransparents()
 	{
 		// Draw Front face first
 		md3dImmediateContext->RSSetState(mRSFrontCull.Get());
-		(*mTransparentObjs)[iTrans]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		(*mTransparentObjs)[iTrans]->Draw();
 		// Draw Back face
 		md3dImmediateContext->RSSetState(nullptr);
-		(*mTransparentObjs)[iTrans]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
+		(*mTransparentObjs)[iTrans]->Draw();
 	}
 
 	// draw a car shadow
@@ -688,4 +738,6 @@ void Scene::DrawTransparents()
 	md3dImmediateContext->OMSetDepthStencilState(nullptr, 0);
 	md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
 }
+
+
 

@@ -16,11 +16,15 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> mobj_VS;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> mInst_VS;
 
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> mobj_PS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> mobj_PSt0;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> mobj_PSd1;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> mobj_PSd2;
+
+
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> mObjShadow_PS;
 
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> msky_VS;
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> msky_PS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader>  msky_PS;
 
 	Microsoft::WRL::ComPtr<ID3D11VertexShader>   mBB_VS;
 	Microsoft::WRL::ComPtr<ID3D11GeometryShader> mBB_GS;
@@ -37,7 +41,14 @@ public:
 
 	ID3D11VertexShader* GetObjVS() const;
 	ID3D11VertexShader* GetInstVS() const;
-	ID3D11PixelShader*  GetObjPS() const;
+
+	ID3D11PixelShader*  GetPSt0() const;
+	ID3D11PixelShader*  GetPSd1() const;
+	ID3D11PixelShader*  GetPSd2() const;
+
+
+
+
 	ID3D11PixelShader*  GetObjShaderPS() const;
 
 	ID3D11VertexShader* GetSkyVS() const;

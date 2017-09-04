@@ -143,14 +143,13 @@ struct VSCBPerObj
 {
 	XMFLOAT4X4 wvp;
 	XMFLOAT4X4 world;
-	XMFLOAT4X4 worldInvTranspose;
 	XMFLOAT4X4 texTransform;
 };
 
 struct PSCBPerObj
 {
 	Material   material; // 4
-	XMINT4     renderSetting; // x: whether has diffuse texture, y: isTransparent
+	XMINT4     renderSetting; // x: whether has diffuse texture, y: isTransparent, z: tex Amount
 };
 
 struct InstanceData

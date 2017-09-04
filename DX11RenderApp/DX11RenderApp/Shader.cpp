@@ -20,9 +20,19 @@ ID3D11VertexShader * Shader::GetInstVS() const
 	return mInst_VS.Get();
 }
 
-ID3D11PixelShader * Shader::GetObjPS() const
+ID3D11PixelShader * Shader::GetPSt0() const
 {
-	return mobj_PS.Get();
+	return mobj_PSt0.Get();
+}
+
+ID3D11PixelShader * Shader::GetPSd1() const
+{
+	return mobj_PSd1.Get();
+}
+
+ID3D11PixelShader * Shader::GetPSd2() const
+{
+	return mobj_PSd2.Get();
 }
 
 ID3D11PixelShader * Shader::GetObjShaderPS() const
@@ -101,9 +111,19 @@ void Shader::LoadShaders(ID3D11Device * _device)
 
 
 	// Load Pixel shader for basic32 Vertex
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PixelShader.cso", byteCode))
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSt0.cso", byteCode))
 	{
-		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PS.GetAddressOf()));
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSt0.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSd1.cso", byteCode))
+	{
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSd1.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSd2.cso", byteCode))
+	{
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSd2.GetAddressOf()));
 	}
 
 	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSShadow.cso", byteCode))

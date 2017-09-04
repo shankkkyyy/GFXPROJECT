@@ -20,7 +20,6 @@ public:
 
 protected:
 
-	bool bWorldMatrixIsChanged = false;
 	UINT mIndexOffset = 0;
 	UINT mVertexOffset = 0;
 	UINT mInstanceAmount = 0;
@@ -28,22 +27,28 @@ protected:
 	char mName[32] = "Object";
 
 	Mesh*                     mMesh = nullptr;
-	ID3D11ShaderResourceView* mTexMap = nullptr;
 
-
+	std::vector<ID3D11ShaderResourceView*> mTexMaps;
+	//ID3D11ShaderResourceView* mTexMap = nullptr;
 
 	XMFLOAT4X4 mWorldMatrix;
 
 	PSCBPerObj mToVRAM_PS;
 	VSCBPerObj mToVRAM_VS;
 
+protected:
+
+	void SetPS(class Scene* const _app);
+
 public:
 
 	void SetIndexOffset(UINT _indexOffset, UINT _vertexOffset);
 
-	void Edit(Mesh* _mesh, Material* _material, ID3D11ShaderResourceView* _mTexMap);
+	void Edit(Mesh* const _mesh, const Material* const _material,  ID3D11ShaderResourceView* const* _mTexMap, UINT _texCount);
 
 	void Update(float _deltaTime);
+
+	void Draw();
 
 	void Draw(ID3D11DeviceContext* devContext, ID3D11Buffer* _VSCB, ID3D11Buffer* _PSCB, const class Camera* const _mCam);
 

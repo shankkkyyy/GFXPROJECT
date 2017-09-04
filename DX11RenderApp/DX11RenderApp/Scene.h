@@ -64,8 +64,9 @@ public:
 
 
 
-	ID3D11Buffer* GetPSCB();
-	//ID3D11Buffer* Get
+	ID3D11Buffer* GetPSCBPerObj() const;
+	ID3D11Buffer* GetVSCBPerObj() const;
+	Shader*  GetShaders() const;
 	//ID3D11Buffer* Get
 	//ID3D11Buffer* Get
 	//ID3D11Buffer* Get
@@ -101,6 +102,7 @@ private:
 	void DrawSkyBox();
 
 	void DrawTransparents();
+
 };
 
 

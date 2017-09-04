@@ -12,9 +12,7 @@ cbuffer VSPerObject : register(b1)
 {
     float4x4 objWorldViewProject;
     float4x4 objWorld;
-    float4x4 objInvTranspose;
     float4x4 objTexTransform;
-
 }
 
 cbuffer GSPerFrame : register(b0)
@@ -41,10 +39,12 @@ cbuffer PSPerObject : register(b1)
 
 
 Texture2D diffuseMap : register(t0);
+Texture2D diffuseMap1 : register(t1);
 
-TextureCube skyBox : register(t1);
 
-Texture2DArray diffuseMapArray : register(t2);
+TextureCube skyBox : register(t10);
+
+Texture2DArray diffuseMapArray : register(t11);
 
 
 SamplerState ss : register(s0);
