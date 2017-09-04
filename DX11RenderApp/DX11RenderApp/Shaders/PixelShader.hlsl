@@ -30,13 +30,13 @@ float4 main(VertexOut pin)  : SV_TARGET
     toEye /= toEyeDistance;
 
     // calculate light
-    float3 ambLightColor = (gAmbientLight * mat.diffuseAlbedo).rgb;
-    float3 dirLightColor = ComputeDirectionalLight(gLight[0], mat, pin.nor_w, toEye);
-    float3 pointLightColor = ComputePointLight(gLight[1], objMaterial, pin.nor_w, pin.pos_w);
-    float3 spotLight = ComputeSpotLight(gLight[2], objMaterial, pin.nor_w, pin.pos_w);
+    float3 ambLight   = (gAmbientLight * mat.diffuseAlbedo).rgb;
+    float3 dirLight   = ComputeDirectionalLight(gLight[0], mat, pin.nor_w, toEye);
+    float3 pointLight = ComputePointLight(gLight[1], objMaterial, pin.nor_w, pin.pos_w, toEye);
+    float3 spotLight  = ComputeSpotLight(gLight[2], objMaterial, pin.nor_w, pin.pos_w, toEye);
 
     float4 litColor;
-    litColor.rgb = dirLightColor + ambLightColor + pointLightColor + spotLight;
+    litColor.rgb = (ambLight + +dirLight + pointLight + spotLight) * mat.diffuseAlbedo.rgb;
     //litColor.rgb = FogEffect(litColor.rgb, toEyeDistance);
     litColor.a = mat.diffuseAlbedo.a;
     return litColor;

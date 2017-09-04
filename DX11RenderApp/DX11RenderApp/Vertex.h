@@ -39,6 +39,7 @@ public:
 	static const D3D11_INPUT_ELEMENT_DESC IDPos[1];
 	static const D3D11_INPUT_ELEMENT_DESC IDPosNor[2];
 	static const D3D11_INPUT_ELEMENT_DESC IDBasic32[3];
+	static const D3D11_INPUT_ELEMENT_DESC IDBasic32Inst[7];
 };
 
 

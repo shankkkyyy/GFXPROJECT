@@ -107,50 +107,109 @@ void GeometryGenerator::CreateCube(float _width, float _height, float _depth, Me
 
 }
 
-void GeometryGenerator::CreateSphere(float _radius, UINT _stack, Mesh * _mesh)
+void GeometryGenerator::CreateSphere(float radius, UINT sliceCount, UINT stackCount, Mesh * meshData)
 {
+	meshData->vertices.clear();
+	meshData->indices.clear();
 
-	_mesh->vertices.clear();
-	_mesh->indices.clear();
 
-	float deltaRad_y = DirectX::XM_PI / _stack;
-	float deltaRad_xz = 2 * deltaRad_y;
-
-	UINT vertexPerStack = _stack + 1;
-
-	// Generate vertex
-	float x, y, z;
-	Vertex newVertex;
-	for (UINT iy = 0; iy < vertexPerStack; iy++)
-	{
-		y = XMScalarCos(deltaRad_y * iy) * _radius;
-		float xzRadius = XMScalarSin(deltaRad_y * iy) * _radius;
-		for (UINT ixz = 0; ixz < vertexPerStack; ixz++)
-		{
-			x = XMScalarSin(deltaRad_xz * ixz);
-			z = XMScalarCos(deltaRad_xz * ixz);
-			newVertex.pos = { x, y, z };
-			_mesh->vertices.push_back(newVertex);
-		}
-	}
-
-	// Generate Index
-	for (UINT iy = 0; iy < _stack; iy++)
-	{
-		for (UINT ixz = 0; ixz < _stack; ixz++)
-		{
-
-			UINT current = iy * vertexPerStack + ixz;
-			_mesh->indices.push_back(current);
-			_mesh->indices.push_back(current + 1);
-			_mesh->indices.push_back(current + vertexPerStack);
-
-			_mesh->indices.push_back(current + vertexPerStack);
-			_mesh->indices.push_back(current + 1);
-			_mesh->indices.push_back(current + vertexPerStack + 1);
-		}
-	}
+	Vertex topVertex;
+	topVertex.pos = { 0.0f, +radius, 0.0f };
+	topVertex.nor = { 0.0f, +1.0f, 0.0f };
+	topVertex.uv  = { 0,0 };
 	
+
+	Vertex bottomVertex;
+	bottomVertex.pos = { 0.0f, -radius, 0.0f };
+	bottomVertex.nor = { 0.0f, -1.0f, 0.0f };
+	bottomVertex.uv = { 0.0f, 1.0f };
+	
+	meshData->vertices.push_back(topVertex);
+
+	float phiStep = XM_PI / stackCount;
+	float thetaStep = 2.0f*XM_PI / sliceCount;
+
+	// Compute vertices for each stack ring (do not count the poles as rings).
+	for (UINT i = 1; i <= stackCount - 1; ++i)
+	{
+		float phi = i*phiStep;
+
+		// Vertices of ring.
+		for (UINT j = 0; j <= sliceCount; ++j)
+		{
+			float theta = j*thetaStep;
+
+			Vertex v;
+
+			// spherical to cartesian
+			v.pos.x = radius*sinf(phi)*cosf(theta);
+			v.pos.y = radius*cosf(phi);
+			v.pos.z = radius*sinf(phi)*sinf(theta);
+
+			XMVECTOR p = XMLoadFloat3(&v.pos);
+			XMStoreFloat3(&v.nor, XMVector3Normalize(p));
+
+			v.uv.x = theta / XM_2PI;
+			v.uv.y = phi / XM_PI;
+
+			meshData->vertices.push_back(v);
+		}
+	}
+
+	meshData->vertices.push_back(bottomVertex);
+
+	//
+	// Compute indices for top stack.  The top stack was written first to the vertex buffer
+	// and connects the top pole to the first ring.
+	//
+
+	for (UINT i = 1; i <= sliceCount; ++i)
+	{
+		meshData->indices.push_back(0);
+		meshData->indices.push_back(i + 1);
+		meshData->indices.push_back(i);
+	}
+
+	//
+	// Compute indices for inner stacks (not connected to poles).
+	//
+
+	// Offset the indices to the index of the first vertex in the first ring.
+	// This is just skipping the top pole vertex.
+	UINT baseIndex = 1;
+	UINT ringVertexCount = sliceCount + 1;
+	for (UINT i = 0; i < stackCount - 2; ++i)
+	{
+		for (UINT j = 0; j < sliceCount; ++j)
+		{
+			meshData->indices.push_back(baseIndex + i*ringVertexCount + j);
+			meshData->indices.push_back(baseIndex + i*ringVertexCount + j + 1);
+			meshData->indices.push_back(baseIndex + (i + 1)*ringVertexCount + j);
+
+			meshData->indices.push_back(baseIndex + (i + 1)*ringVertexCount + j);
+			meshData->indices.push_back(baseIndex + i*ringVertexCount + j + 1);
+			meshData->indices.push_back(baseIndex + (i + 1)*ringVertexCount + j + 1);
+		}
+	}
+
+	//
+	// Compute indices for bottom stack.  The bottom stack was written last to the vertex buffer
+	// and connects the bottom pole to the bottom ring.
+	//
+
+	// South pole vertex was added last.
+	UINT southPoleIndex = (UINT)meshData->vertices.size() - 1;
+
+	// Offset the indices to the index of the first vertex in the last ring.
+	baseIndex = southPoleIndex - ringVertexCount;
+
+	for (UINT i = 0; i < sliceCount; ++i)
+	{
+		meshData->indices.push_back(southPoleIndex);
+		meshData->indices.push_back(baseIndex + i);
+		meshData->indices.push_back(baseIndex + i + 1);
+	}			
+
 }
 
 void GeometryGenerator::CreatePlane(float _width, float _depth, Mesh * _mesh)

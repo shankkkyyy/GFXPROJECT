@@ -30,6 +30,10 @@ protected:
 	Mesh*                     mMesh = nullptr;
 	ID3D11ShaderResourceView* mTexMap = nullptr;
 
+
+
+	XMFLOAT4X4 mWorldMatrix;
+
 	PSCBPerObj mToVRAM_PS;
 	VSCBPerObj mToVRAM_VS;
 
@@ -41,11 +45,9 @@ public:
 
 	void Update(float _deltaTime);
 
-	
-
 	void Draw(ID3D11DeviceContext* devContext, ID3D11Buffer* _VSCB, ID3D11Buffer* _PSCB, const class Camera* const _mCam);
 
-	void OpagueDraw();
+	void DrawInstance();
 
 	// increment sort result
 	static bool CompareDepth(const Object* const _left, const Object* const _right);
@@ -66,16 +68,21 @@ public:
 	void SetTexTransform(float _x, float _y);
 	void SetWorldMatrix(CXMMATRIX _matrix);
 	void SetName(const char* const _val);
+	void SetInstanceCount(UINT _value);
 	
 
 
+
+	UINT  GetInstanceAmount() const;
 	float GetDepth() const;
 	XMFLOAT4 GetPosition() const;
 	XMVECTOR GetPositionXM() const;
 	const Mesh* const GetMesh() const;
+	XMFLOAT4X4 GetWorldMatrix() const;
 	XMMATRIX GetWorldMatrixXM() const;
 
 	void UpdateDepth(const class Camera* const _cam);
+	void Rotate(float _pitch, float _yaw, float _roll);
 
 };
 
@@ -91,8 +98,9 @@ public:
 	static Mesh* GetCarMesh();
 	static Mesh* GetDefaultCubeMesh();
 	static Mesh* GetDefaultPlaneMesh();
+	static Mesh* GetSphereMesh();
 
-
+	static Material* GetSilverMaterial();
 	static Material* GetDefMaterial();
 
 	static ID3D11ShaderResourceView* GetCarTexture();
@@ -109,9 +117,11 @@ private:
 	static Mesh*                     testCube_mesh;
 	static Mesh*                     car_mesh;
 	static Mesh*                     defCube_mesh;
+	static Mesh*                     defSphere_mesh;
 	static Mesh*                     defPlane_mesh;
 
 	static Material* def_material;
+	static Material* silver_material;
 
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> car_texture;
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> grass_texture;

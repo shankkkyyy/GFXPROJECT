@@ -17,6 +17,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mVB            = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mGeoVB         = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mIB 		    = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> mInstB         = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerFrame_VS = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerObj_VS   = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerFrame_PS = nullptr;
@@ -31,11 +32,13 @@ private:
 	PSCBPerFrame mToVRAMPerFrame_PS;
 	GSCBPerFrame mToVRAMPerFrame_GS;
 
-	class SkyBox*        mSkyBox = nullptr;
+	std::vector<InstanceData>* mInstanceData = nullptr;
 
+	class SkyBox*          mSkyBox = nullptr;
 
 	std::vector<Object*>*  mOpagueObjs      = nullptr;
 	std::vector<Object*>*  mTransparentObjs = nullptr;
+	std::vector<Object*>*  mInstances       = nullptr;
 
 
 #pragma region Geometry Shader pratice
@@ -61,6 +64,16 @@ public:
 
 
 
+	ID3D11Buffer* GetPSCB();
+	//ID3D11Buffer* Get
+	//ID3D11Buffer* Get
+	//ID3D11Buffer* Get
+	//ID3D11Buffer* Get
+	//ID3D11Buffer* Get
+	//ID3D11Buffer* Get
+
+
+
 
 private:
 
@@ -68,6 +81,11 @@ private:
 
 	// assign mesh, texture and material
 	void ObjInitAndEdit();
+
+
+	void GetIndexAndVertexSize(UINT& objVerticeSize, UINT& objIndicesSize, std::vector<Object*>* _objList);
+
+	void GetIndexAndVertexStartIndex(size_t& iOffset, size_t& vOffset, UINT* _indices, Vertex* _vertices, std::vector<Object*>* _objList);
 
 	// build the geometry according to the objs to draw
 	void BuildGeometry();

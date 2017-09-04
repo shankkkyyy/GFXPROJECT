@@ -33,6 +33,15 @@ Scene::~Scene()
 		delete (*mTransparentObjs)[i];
 	}
 	delete mTransparentObjs;
+
+	for (i = 0; i < mInstances->size(); i++)
+	{
+		delete (*mInstances)[i];
+	}
+	delete mInstances;
+
+	delete mInstanceData;
+
 }
 
 bool Scene::InitApp()
@@ -71,6 +80,11 @@ Scene * Scene::GetBaseScene()
 	return mBaseScene;
 }
 
+ID3D11Buffer * Scene::GetPSCB()
+{
+	return mCBPerObj_PS.Get();
+}
+
 void Scene::ObjInitAndEdit()
 {
 
@@ -80,6 +94,7 @@ void Scene::ObjInitAndEdit()
 
 	mOpagueObjs = new std::vector<Object*>();
 	mTransparentObjs = new std::vector<Object*>();
+	mInstances = new std::vector<Object*>();
 
 	// Surface
 	Object* surface = new Object();
@@ -90,12 +105,21 @@ void Scene::ObjInitAndEdit()
 	surface->SetTexTransform(5, 5);
 	mOpagueObjs->push_back(surface);
 
+	// sphere
+	Object* sphere = new Object();
+	sphere->SetName("sphere");
+	sphere->Edit(Objects::GetSphereMesh(), Objects::GetSilverMaterial(), nullptr);
+	sphere->SetPosition(XMFLOAT3(-100, 10, 10));
+	sphere->SetScale(XMFLOAT3(0.5f, 0.5f, 0.5f));
+	sphere->SetInstanceCount(10);
+	mInstances->push_back(sphere);
 
 	// Car
 	Object* car = new Object();
 	car->SetName("car");
 	car->Edit(Objects::GetCarMesh(), nullptr, Objects::GetCarTexture());
 	car->SetPosition(XMFLOAT3(0, 0, 5));
+	car->Rotate(0, 90, 0);
 	mOpagueObjs->push_back(car);
 
 
@@ -109,6 +133,14 @@ void Scene::ObjInitAndEdit()
 	transparentCube->SetTransparent(true);
 	mTransparentObjs->push_back(transparentCube);
 
+	Object* transparentSphere = new Object();
+	transparentSphere->SetName("transparentSphere");
+	transparentSphere->Edit(Objects::GetSphereMesh(), nullptr, nullptr);
+	transparentSphere->SetPosition(XMFLOAT3(30, 10, 0));
+	transparentSphere->SetDiffuseColor(DirectX::Colors::RoyalBlue, 0.3f);
+	transparentSphere->SetTransparent(true);
+	mTransparentObjs->push_back(transparentSphere);
+
 	// mirror
 	Object* mirror = new Object();
 	mirror->SetName("mirror");
@@ -119,6 +151,18 @@ void Scene::ObjInitAndEdit()
 	mirror->SetDiffuseAlpha(0.3f);
 	mirror->SetTransparent(true);
 	mTransparentObjs->push_back(mirror);
+
+
+	// build instance data
+	mInstanceData = new std::vector<InstanceData>(sphere->GetInstanceAmount());
+
+	for (size_t i = 0; i < mInstanceData->size(); i++)
+	{
+		(*mInstanceData)[i].world = sphere->GetWorldMatrix();
+		(*mInstanceData)[i].world(3, 0) += 20 * i;
+		XMStoreFloat4x4(&(*mInstanceData)[i].world, 
+			XMMatrixTranspose(XMLoadFloat4x4(&(*mInstanceData)[i].world)) );
+	}
 
 
 	mTreeAmount = 15;
@@ -161,16 +205,16 @@ void Scene::ObjInitAndEdit()
 
 	// Point light 
 	mToVRAMPerFrame_PS.light[1].lightColor = XMFLOAT3((const float*)&Colors::Gold);;
-	mToVRAMPerFrame_PS.light[1].position = { 0.0f, 10.0f, 40.0f };
+	mToVRAMPerFrame_PS.light[1].position = { 0.0f, 15.0f, 40.0f };
 	mToVRAMPerFrame_PS.light[1].fallOffStart = 0;
 	mToVRAMPerFrame_PS.light[1].fallOffend = 40;
 
 	// Spot light - 
 	mToVRAMPerFrame_PS.light[2].lightColor = XMFLOAT3((const float*)&Colors::DeepPink);
-	mToVRAMPerFrame_PS.light[2].direction = { -1, -1, 1 };
+	mToVRAMPerFrame_PS.light[2].direction = { -1, -.3f, 1 };
 	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].direction,
 		XMVector3Normalize(MathHelper::XMFloat3ToXMVector(mToVRAMPerFrame_PS.light[2].direction)));
-	mToVRAMPerFrame_PS.light[2].position = { 25.0f, 7.5f, -25.0f };
+	mToVRAMPerFrame_PS.light[2].position = { 25.0f, 7.5f, -30.0f };
 	mToVRAMPerFrame_PS.light[2].fallOffStart = 0;
 	mToVRAMPerFrame_PS.light[2].fallOffend = 50;
 	mToVRAMPerFrame_PS.light[2].spotAngle = 0.7f; //45
@@ -187,29 +231,56 @@ void Scene::ObjInitAndEdit()
 
 }
 
+void Scene::GetIndexAndVertexSize(UINT & objVerticeSize, UINT & objIndicesSize, std::vector<Object*>* _objList)
+{
+	for (size_t i = 0; i < _objList->size(); i++)
+	{
+		objVerticeSize += (UINT)(*_objList)[i]->GetMesh()->vertices.size();
+		objIndicesSize += (UINT)(*_objList)[i]->GetMesh()->indices.size();
+	}
+}
+
+void Scene::GetIndexAndVertexStartIndex(size_t& iOffset, size_t& vOffset, UINT * _indices, Vertex * _vertices, std::vector<Object*>* _objList)
+{
+
+	for (size_t i = 0; i < _objList->size(); i++)
+	{
+		size_t vlength = (*_objList)[i]->GetMesh()->vertices.size();
+		for (size_t iV = 0; iV < vlength; iV++)
+		{
+			_vertices[iV + vOffset] = (*_objList)[i]->GetMesh()->vertices[iV];
+		}
+		// reset length to indices size
+		size_t ilength = (*_objList)[i]->GetMesh()->indices.size();
+		for (size_t iI = 0; iI < ilength; iI++)
+		{
+			_indices[iI + iOffset] = (*_objList)[i]->GetMesh()->indices[iI];
+		}
+
+		// get the Index && vertex offset for index draw within one buffer
+		(*_objList)[i]->SetIndexOffset((UINT)iOffset, (UINT)vOffset);
+
+		// update offset
+		vOffset += vlength;
+		iOffset += ilength;
+	}
+}
+
 void Scene::BuildGeometry()
 {
 
 	// for Obj
 	UINT                   objVerticeSize = 0, objIndicesSize = 0;
-	D3D11_BUFFER_DESC      vbd, ibd;
+	D3D11_BUFFER_DESC      vbd, ibd, instbd;
 	D3D11_SUBRESOURCE_DATA initData;
 	size_t i = 0;
 	size_t vOffset = 0, iOffset = 0; 
 
 #pragma region Gather all vertices and indices for scene objectes into to two separate array
-	// Get total unique vertex size, and indices size 
-	for (i = 0; i < mOpagueObjs->size(); i++)
-	{
-		objVerticeSize += (UINT) (*mOpagueObjs)[i]->GetMesh()->vertices.size();
-		objIndicesSize += (UINT)(*mOpagueObjs)[i]->GetMesh()->indices.size();
-	}
-	for (i = 0; i < mTransparentObjs->size(); i++)
-	{
-		objVerticeSize += (UINT)(*mTransparentObjs)[i]->GetMesh()->vertices.size();
-		objIndicesSize += (UINT)(*mTransparentObjs)[i]->GetMesh()->indices.size();
-	}
 
+	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mOpagueObjs);
+	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mInstances);
+	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mTransparentObjs);
 
 	// load all mesh into a vertex array
 	// load all indices into an indices array
@@ -217,53 +288,11 @@ void Scene::BuildGeometry()
 	UINT* objIndices = new UINT[objIndicesSize];
 	Vertex* objVertices = new Vertex[objVerticeSize];
 
-	for (i = 0; i < mOpagueObjs->size(); i++)
-	{
-		size_t vlength = (*mOpagueObjs)[i]->GetMesh()->vertices.size();
-		for (size_t iV = 0; iV < vlength; iV++)
-		{
-			objVertices[iV + vOffset] = (*mOpagueObjs)[i]->GetMesh()->vertices[iV];
-		}
-		// reset length to indices size
-		size_t ilength = (*mOpagueObjs)[i]->GetMesh()->indices.size();
-		for (size_t iI = 0; iI < ilength; iI++)
-		{
-			objIndices[iI + iOffset] = (*mOpagueObjs)[i]->GetMesh()->indices[iI];
-		}
-
-		// get the Index && vertex offset for index draw within one buffer
-		(*mOpagueObjs)[i]->SetIndexOffset((UINT)iOffset,(UINT)vOffset);
-
-		// update offset
-		vOffset += vlength;
-		iOffset += ilength;
-	}
-
-	for (i = 0; i < mTransparentObjs->size(); i++)
-	{
-		size_t vlength = (*mTransparentObjs)[i]->GetMesh()->vertices.size();
-		for (size_t iV = 0; iV < vlength; iV++)
-		{
-			objVertices[iV + vOffset] = (*mTransparentObjs)[i]->GetMesh()->vertices[iV];
-		}
-		// reset length to indices size
-		size_t ilength = (*mTransparentObjs)[i]->GetMesh()->indices.size();
-		for (size_t iI = 0; iI < ilength; iI++)
-		{
-			objIndices[iI + iOffset] = (*mTransparentObjs)[i]->GetMesh()->indices[iI];
-		}
-
-		// get the Index && vertex offset for index draw within one buffer
-		(*mTransparentObjs)[i]->SetIndexOffset((UINT)iOffset, (UINT)vOffset);
-
-		// update offset
-		vOffset += vlength;
-		iOffset += ilength;
-	}
-
+	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mOpagueObjs);
+	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mInstances);
+	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mTransparentObjs);
 
 #pragma endregion
-
 
 #pragma region Create Buffer and push data into VB and IB for non - geometry shader generated obj
 	// VB
@@ -294,6 +323,18 @@ void Scene::BuildGeometry()
 	initData.pSysMem = objIndices;
 	HR(md3dDevice->CreateBuffer(&ibd, &initData, mIB.GetAddressOf()));
 
+	// Inst Buffer:
+	ZeroMemory(&instbd, sizeof(D3D11_BUFFER_DESC));
+	instbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	instbd.ByteWidth = (UINT)mInstanceData->size() * sizeof(InstanceData);
+	instbd.Usage = D3D11_USAGE_DYNAMIC;
+	instbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	instbd.MiscFlags = 0;
+	instbd.StructureByteStride = 0;
+
+	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
+	initData.pSysMem = mInstanceData->data();
+	HR(md3dDevice->CreateBuffer(&instbd, &initData, mInstB.GetAddressOf()));
 #pragma endregion
 
 #pragma region Create Buffer and push data into VB and IB for geometry shader generated obj
@@ -312,6 +353,7 @@ void Scene::BuildGeometry()
 	HR(md3dDevice->CreateBuffer(&vbd, &initData, mGeoVB.GetAddressOf()));
 
 #pragma endregion
+
 
 	delete[] objVertices;
 	delete[] objIndices;
@@ -360,20 +402,13 @@ void Scene::UpdateScene(float _deltaTime)
 	CXMMATRIX rotationZ = XMMatrixRotationNormal(zAxis, 0.5f * _deltaTime);
 	
 	XMStoreFloat3(&mToVRAMPerFrame_PS.light[0].direction,
-		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction), rotationZ));
+	XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction), rotationZ));
 
-	//move pointlight sine wave
+	//move pointlight 
 	CXMMATRIX rotationY = XMMatrixRotationNormal(yAxis, 0.5f * _deltaTime);
 
 	XMStoreFloat3(&mToVRAMPerFrame_PS.light[1].position,
-		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[1].position), rotationY));
-
-	if (mToVRAMPerFrame_PS.light[1].position.y > 15)
-		pointSpeedY = -1.0f;
-	else if(mToVRAMPerFrame_PS.light[1].position.y < 5)
-		pointSpeedY = 1.0f;
-
-	mToVRAMPerFrame_PS.light[1].position.y += pointSpeedY * _deltaTime;
+	XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[1].position), rotationY));
 
 	// move spot light
 
@@ -403,8 +438,9 @@ void Scene::DrawScene()
 
 #pragma region   Upload PerFrame cBuffer VS
 	// Update
+
 	XMStoreFloat4x4(&mToVRAMPerFrame_VS.camPosTransform, XMMatrixTranspose(XMMatrixTranslation(camPos.x, camPos.y, camPos.z) * mainCamera->GetViewProjXM()));
-	
+	XMStoreFloat4x4(&mToVRAMPerFrame_VS.viewProj, XMMatrixTranspose(mainCamera->GetViewProjXM()));
 	// mapping
 	ZeroMemory(&mSource, sizeof(mSource));
 	HR(md3dImmediateContext->Map(mCBPerFrame_VS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
@@ -463,29 +499,48 @@ void Scene::DrawOpaques()
 
 	const Camera* const mainCamera = GetMainCamera();
 
-	UINT stride, offset;
-
-#pragma region  Draw non - geometry shader generated objs
-	stride = sizeof(Vertex);
-	offset = 0;
+#pragma region Draws
 
 	// 1. Set Vertex, Index Buffer , shaders for all objects to draw
+
+	UINT stride = sizeof(Vertex); 
+	UINT offset = 0;
+
 	md3dImmediateContext->IASetVertexBuffers(0, 1, mVB.GetAddressOf(), &stride, &offset);
 	md3dImmediateContext->IASetIndexBuffer(mIB.Get(), DXGI_FORMAT_R32_UINT, 0);
 	md3dImmediateContext->VSSetShader(mShaders->GetObjVS(), 0, 0);
 	md3dImmediateContext->PSSetShader(mShaders->GetObjPS(), 0, 0);
 	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32IL());
 
-
-
 	// 2. Draw Every Object
-	UINT index = 0;
 	for (size_t iOpa = 0; iOpa < mOpagueObjs->size(); iOpa++)
 	{
 		(*mOpagueObjs)[iOpa]->Draw(md3dImmediateContext, mCBPerObj_VS.Get(), mCBPerObj_PS.Get(), mainCamera);
 	}
 
 #pragma endregion
+
+#pragma region Draw Instances
+
+	UINT strides[2] = { sizeof(Vertex), sizeof(InstanceData) };
+	UINT offsets[2] = { 0, 0 };
+
+	ID3D11Buffer* vbs[2] = { mVB.Get(), mInstB.Get() };
+
+	md3dImmediateContext->IASetVertexBuffers(0, 2, vbs, strides, offsets);
+	md3dImmediateContext->IASetIndexBuffer(mIB.Get(), DXGI_FORMAT_R32_UINT, 0);
+	md3dImmediateContext->VSSetShader(mShaders->GetInstVS(), 0, 0);
+	md3dImmediateContext->PSSetShader(mShaders->GetObjPS(), 0, 0);
+	md3dImmediateContext->IASetInputLayout(mShaders->GetBasic32ILInst());
+
+	for (size_t iInst = 0; iInst < mInstances->size(); iInst++)
+	{
+		(*mInstances)[iInst]->DrawInstance();
+	}
+
+
+#pragma endregion
+
 
 #pragma region  Draw Geometry shader generated objs
 
@@ -526,8 +581,12 @@ void Scene::DrawOpaques()
 
 	// restore topology
 	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	md3dImmediateContext->GSSetShader(nullptr, 0, 0);
+
 
 #pragma endregion
+
+
 
 }
 

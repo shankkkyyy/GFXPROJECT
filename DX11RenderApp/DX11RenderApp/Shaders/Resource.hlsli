@@ -4,7 +4,8 @@
 
 cbuffer VSPerFrame : register(b0)
 {
-    float4x4 gCamPosTransform;
+    float4x4 gCamPosTransform;  // for skybox
+    float4x4 gViewProj;
 }
 
 cbuffer VSPerObject : register(b1)
@@ -13,6 +14,7 @@ cbuffer VSPerObject : register(b1)
     float4x4 objWorld;
     float4x4 objInvTranspose;
     float4x4 objTexTransform;
+
 }
 
 cbuffer GSPerFrame : register(b0)

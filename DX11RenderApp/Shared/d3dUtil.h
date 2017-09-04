@@ -18,6 +18,7 @@
 #include <DirectXColors.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
+#include <DirectXCollision.h>
 #include "ddsTextureloader.h"
 #include "wictextureLoader.h"
 
@@ -119,6 +120,7 @@ public:
 struct VSCBPerFrame
 {
 	XMFLOAT4X4 camPosTransform;
+	XMFLOAT4X4 viewProj;
 };
 
 struct PSCBPerFrame
@@ -149,6 +151,11 @@ struct PSCBPerObj
 {
 	Material   material; // 4
 	XMINT4     renderSetting; // x: whether has diffuse texture, y: isTransparent
+};
+
+struct InstanceData
+{
+	XMFLOAT4X4 world;
 };
 
 

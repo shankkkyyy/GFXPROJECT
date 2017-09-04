@@ -15,6 +15,11 @@ ID3D11VertexShader * Shader::GetObjVS() const
 	return mobj_VS.Get();
 }
 
+ID3D11VertexShader * Shader::GetInstVS() const
+{
+	return mInst_VS.Get();
+}
+
 ID3D11PixelShader * Shader::GetObjPS() const
 {
 	return mobj_PS.Get();
@@ -55,6 +60,11 @@ ID3D11InputLayout * Shader::GetPosIL() const
 	return mILpos.Get();
 }
 
+ID3D11InputLayout * Shader::GetBasic32ILInst() const
+{
+	return mILBasic32Inst.Get();
+}
+
 ID3D11InputLayout * Shader::GetBasic32IL() const
 {
 	return mILBasic32.Get();
@@ -80,6 +90,15 @@ void Shader::LoadShaders(ID3D11Device * _device)
 		HR(_device->CreateInputLayout(
 			InputLayoutDesc::IDBasic32, _countof(InputLayoutDesc::IDBasic32), byteCode.data(), byteCode.size(), mILBasic32.GetAddressOf()));
 	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSInstance.cso", byteCode))
+	{
+		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mInst_VS.GetAddressOf()));
+		HR(_device->CreateInputLayout(
+			InputLayoutDesc::IDBasic32Inst, _countof(InputLayoutDesc::IDBasic32Inst), byteCode.data(), byteCode.size(), mILBasic32Inst.GetAddressOf()));
+	}
+
+
 
 	// Load Pixel shader for basic32 Vertex
 	if (d3dHelper::LoadShaderByteCode(L"Shaders/PixelShader.cso", byteCode))

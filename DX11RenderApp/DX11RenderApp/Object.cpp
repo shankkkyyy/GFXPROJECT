@@ -1,7 +1,7 @@
 #include "Object.h"
 #include "GeometryGenerator.h"
-#include "SceneRenderApp.h"
-#include "Camera.h"
+#include "Scene.h"
+
 
 
 
@@ -10,7 +10,7 @@ Object::Object()
 	XMMATRIX I = XMMatrixIdentity();
 
 	// world
-	XMStoreFloat4x4(&mToVRAM_VS.world, I);
+	XMStoreFloat4x4(&mWorldMatrix, I);
 
 	// worldInvTranspose
 	XMVECTOR det = XMMatrixDeterminant(I);
@@ -18,6 +18,7 @@ Object::Object()
 
 	// texTransform
 	XMStoreFloat4x4(&mToVRAM_VS.texTransform, I);
+
 
 	mToVRAM_PS.renderSetting = { 0, 0, 0, 0 };
 }
@@ -57,15 +58,15 @@ void Object::SetIndexOffset(UINT _indexOffset, UINT _vertexOffset)
 void Object::SetScale(const XMFLOAT3 & _xyz)
 {
 	XMMATRIX scale = XMMatrixScaling(_xyz.x, _xyz.y, _xyz.z);
-	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixMultiply(scale, XMLoadFloat4x4(&mToVRAM_VS.world)));
+	XMStoreFloat4x4(&mWorldMatrix, XMMatrixMultiply(scale, XMLoadFloat4x4(&mWorldMatrix)));
 	bWorldMatrixIsChanged = true;
 }
 
 void Object::SetPosition(const XMFLOAT3 & _pos)
 {
-	mToVRAM_VS.world(3, 0) = _pos.x;
-	mToVRAM_VS.world(3, 1) = _pos.y;
-	mToVRAM_VS.world(3, 2) = _pos.z;
+	mWorldMatrix(3, 0) = _pos.x;
+	mWorldMatrix(3, 1) = _pos.y;
+	mWorldMatrix(3, 2) = _pos.z;
 	bWorldMatrixIsChanged = true;
 }
 
@@ -77,7 +78,7 @@ void Object::SetTexTransform(float _x, float _y)
 
 void Object::SetWorldMatrix(CXMMATRIX _matrix)
 {
-	XMStoreFloat4x4(&mToVRAM_VS.world, _matrix);
+	XMStoreFloat4x4(&mWorldMatrix, _matrix);
 	bWorldMatrixIsChanged = true;
 }
 
@@ -88,9 +89,14 @@ void Object::SetName(const char* const _val)
 	strcpy_s(mName, size, _val);
 }
 
+void Object::SetInstanceCount(UINT _value)
+{
+	mInstanceAmount = _value;
+}
+
 XMMATRIX Object::GetWorldMatrixXM() const
 {
-	return XMLoadFloat4x4(&mToVRAM_VS.world);
+	return XMLoadFloat4x4(&mWorldMatrix);
 }
 
 void Object::UpdateDepth(const Camera * const _cam)
@@ -104,10 +110,20 @@ void Object::UpdateDepth(const Camera * const _cam)
 	};
 
 	mDepth =
-		camViewCol2.x * mToVRAM_VS.world(3, 0) +
-		camViewCol2.y * mToVRAM_VS.world(3, 1) +
-		camViewCol2.z * mToVRAM_VS.world(3, 2) +
-		camViewCol2.w * mToVRAM_VS.world(3, 3);
+		camViewCol2.x * mWorldMatrix(3, 0) +
+		camViewCol2.y * mWorldMatrix(3, 1) +
+		camViewCol2.z * mWorldMatrix(3, 2) +
+		camViewCol2.w * mWorldMatrix(3, 3);
+}
+
+void Object::Rotate(float _pitch, float _yaw, float _roll)
+{
+	_pitch = XMConvertToRadians(_pitch);
+	_yaw = XMConvertToRadians(_yaw);
+	_roll = XMConvertToRadians(_roll);
+	XMMATRIX rot = XMMatrixRotationRollPitchYaw(_pitch, _yaw, _roll);
+	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix) * rot;
+	XMStoreFloat4x4(&mWorldMatrix, world);
 }
 
 void Object::Update(float _deltaTime)
@@ -126,7 +142,7 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 #pragma region Upload cBuffer VS
 
 	// set VS cbuffer
-	XMMATRIX world = XMLoadFloat4x4(&mToVRAM_VS.world);
+	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
 
 	// wvp, must be update every frame
 	XMMATRIX wvp = world * _mCam->GetViewProjXM();
@@ -135,7 +151,7 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 
 	if (bWorldMatrixIsChanged)
 	{
-		XMMATRIX world = XMLoadFloat4x4(&mToVRAM_VS.world);
+		XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
 		world.r[3] = XMVectorSet(0, 0, 0, 1);
 		// worldInvTranspose
 		XMVECTOR det = XMMatrixDeterminant(world);
@@ -163,10 +179,28 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
 }
 
-void Object::OpagueDraw()
+void Object::DrawInstance()
 {
 
+	Scene* const app = Scene::GetBaseScene();
+	// Set Texture
+	app->GetDeviceContext()->PSSetShaderResources(0, 1, &mTexMap);
+
+	// updating CB for Ps
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	ID3D11Buffer* PSCBPerObj = app->GetPSCB();
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	HR(app->GetDeviceContext()->Map(PSCBPerObj, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mToVRAM_PS, sizeof(mToVRAM_PS));
+	app->GetDeviceContext()->Unmap(PSCBPerObj, 0);
+
+	app->GetDeviceContext()->PSSetConstantBuffers(1, 1, &PSCBPerObj);
+
+
+	app->GetDeviceContext()->DrawIndexedInstanced(
+		(UINT)mMesh->indices.size(), mInstanceAmount, mIndexOffset, mVertexOffset, 0);
 }
+
 
 bool Object::CompareDepth(const Object * const _left, const Object * const _right)
 {
@@ -181,6 +215,11 @@ bool Object::IsTransparent() const
 	return mToVRAM_PS.renderSetting.y == 1;
 }
 
+UINT Object::GetInstanceAmount() const
+{
+	return mInstanceAmount;
+}
+
 float Object::GetDepth() const
 {
 	return mDepth;
@@ -188,18 +227,23 @@ float Object::GetDepth() const
 
 XMFLOAT4 Object::GetPosition() const
 {
-	return XMFLOAT4(mToVRAM_VS.world(3, 0), mToVRAM_VS.world(3, 1), mToVRAM_VS.world(3, 2), mToVRAM_VS.world(3, 3));
+	return XMFLOAT4(mWorldMatrix(3, 0), mWorldMatrix(3, 1), mWorldMatrix(3, 2), mWorldMatrix(3, 3));
 }
 
 XMVECTOR Object::GetPositionXM() const
 {
-	XMVECTOR out = XMVectorSet(mToVRAM_VS.world(3, 0), mToVRAM_VS.world(3, 1), mToVRAM_VS.world(3, 2), mToVRAM_VS.world(3, 3));
+	XMVECTOR out = XMVectorSet(mWorldMatrix(3, 0), mWorldMatrix(3, 1), mWorldMatrix(3, 2), mWorldMatrix(3, 3));
 	return out;
 }
 
 const Mesh* const Object::GetMesh() const
 {
 	return mMesh;
+}
+
+XMFLOAT4X4 Object::GetWorldMatrix() const
+{
+	return mWorldMatrix;
 }
 
 void Object::SetDiffuseColor(const FLOAT* _color, float _alpha)
@@ -230,9 +274,10 @@ Mesh*           Objects::testCube_mesh = nullptr;
 Mesh*           Objects::car_mesh = nullptr;
 Mesh*           Objects::defCube_mesh = nullptr;
 Mesh*           Objects::defPlane_mesh = nullptr;
+Mesh*           Objects::defSphere_mesh = nullptr;
 
 Material*       Objects::def_material = nullptr;
-
+Material*       Objects::silver_material = nullptr;
 
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::grass_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::car_texture = nullptr;
@@ -249,11 +294,20 @@ Objects::Objects()
 	car_mesh      = new Mesh();
 	defCube_mesh  = new Mesh();
 	defPlane_mesh = new Mesh();
+	defSphere_mesh = new Mesh();
 
 	def_material = new Material();
 	def_material->diffuseAlbedo = { 1.0f,1.0f,1.0f,1.0f };
 	def_material->fresnelR0 = { 0,0,0 };
 	def_material->shininess = 0;
+
+	silver_material = new Material();
+	silver_material->diffuseAlbedo = XMFLOAT4(DirectX::Colors::Silver);
+	silver_material->fresnelR0 = { 0.9f, 0.9f, 0.9f};
+	silver_material->shininess = 8;
+
+
+	
 }
 
 Objects::~Objects()
@@ -262,7 +316,9 @@ Objects::~Objects()
 	delete testCube_mesh;
 	delete defCube_mesh;
 	delete defPlane_mesh;
-
+	delete defSphere_mesh;
+	
+	delete silver_material;
 	delete def_material;
 }
 
@@ -284,6 +340,16 @@ Mesh * Objects::GetDefaultCubeMesh()
 Mesh * Objects::GetDefaultPlaneMesh()
 {
 	return defPlane_mesh;
+}
+
+Mesh * Objects::GetSphereMesh()
+{
+	return defSphere_mesh;
+}
+
+Material * Objects::GetSilverMaterial()
+{
+	return silver_material;
 }
 
 Material * Objects::GetDefMaterial()
@@ -335,6 +401,7 @@ void Objects::LoadAssets(ID3D11Device* _device)
 
 	GeometryGenerator::CreateCube(1, 1, 1, defCube_mesh);
 	GeometryGenerator::CreatePlane(1, 1, defPlane_mesh);
+	GeometryGenerator::CreateSphere(5, 16, 16,  defSphere_mesh);
 
 	HR(CreateWICTextureFromFile(_device, L"../Models/car.png", nullptr,        car_texture  .GetAddressOf()));
 	HR(CreateWICTextureFromFile(_device, L"../Models/grass.png", nullptr,      grass_texture.GetAddressOf()));

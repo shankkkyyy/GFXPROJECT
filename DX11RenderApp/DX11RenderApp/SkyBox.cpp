@@ -80,7 +80,6 @@ void SkyBox::Draw(ID3D11DeviceContext * _ImmediateContext)
 
 	_ImmediateContext->VSSetShader(mVS, 0, 0);
 	_ImmediateContext->PSSetShader(mPS, 0, 0);
-	_ImmediateContext->GSSetShader(nullptr, 0, 0);
 	_ImmediateContext->IASetInputLayout(mIL);
 	
 	// texture

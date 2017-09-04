@@ -157,6 +157,9 @@
     <FxCompile Include="Shaders\VSBillboard.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\VSInstance.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Functions.hlsli">

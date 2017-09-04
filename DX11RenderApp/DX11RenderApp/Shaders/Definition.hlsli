@@ -1,5 +1,14 @@
 
 
+struct VertexInInst
+{
+    float3 pos_l    : POSITION;
+    float3 nor_l    : NORMAL;
+    float2 uv_l     : UV;
+    float4x4 world  : WORLD;
+    uint instanceID : SV_InstanceID;
+};
+
 struct VertexInPos
 {
     float3 pos_l : POSITION;
@@ -9,7 +18,7 @@ struct VertexOutPos
 {
     float4 pos_h : SV_Position;
     float3 pos_l : POSITIONL;
-    //float3 pos_w : POSITIONW;
+    
 };
 
 struct VertexIn
