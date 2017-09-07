@@ -29,12 +29,12 @@ protected:
 	Mesh*                     mMesh = nullptr;
 
 	std::vector<ID3D11ShaderResourceView*> mTexMaps;
-	//ID3D11ShaderResourceView* mTexMap = nullptr;
 
 	XMFLOAT4X4 mWorldMatrix;
 
 	PSCBPerObj mToVRAM_PS;
 	VSCBPerObj mToVRAM_VS;
+	BoundingBox mBound;
 
 protected:
 
@@ -50,9 +50,11 @@ public:
 
 	void Draw();
 
+	void DrawTransparent();
+
 	void Draw(ID3D11DeviceContext* devContext, ID3D11Buffer* _VSCB, ID3D11Buffer* _PSCB, const class Camera* const _mCam);
 
-	void DrawInstance();
+	UINT DrawInstance(const InstanceData* const _instData);
 
 	// increment sort result
 	static bool CompareDepth(const Object* const _left, const Object* const _right);
@@ -109,7 +111,6 @@ public:
 	static Material* GetDefMaterial();
 
 	static ID3D11ShaderResourceView* GetCarTexture();
-	static ID3D11ShaderResourceView* GetGrassTexture();
 	static ID3D11ShaderResourceView* GetSkyTexuture();
 	static ID3D11ShaderResourceView* GetFloorTexture();
 	static ID3D11ShaderResourceView* GetWallTexture();
@@ -129,7 +130,6 @@ private:
 	static Material* silver_material;
 
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> car_texture;
-	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> grass_texture;
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sky_texture;
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> floor_texture;
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> wall_texture;

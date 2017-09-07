@@ -235,4 +235,31 @@ void GeometryGenerator::CreatePlane(float _width, float _depth, Mesh * _mesh)
 	(_mesh->indices)[3] = 0; 	(_mesh->indices)[4] = 2;	(_mesh->indices)[5] = 3;
 }
 
+void GeometryGenerator::CreateSreenQuad(Mesh * _mesh)
+{
+	_mesh->vertices.clear();
+	_mesh->indices.clear();
+
+	_mesh->vertices.resize(4);
+	_mesh->indices.resize(6);
+
+	XMFLOAT3 normal = { 0, 0, 0 };
+
+	_mesh->vertices[0] =
+	{ XMFLOAT3(-1, 1, 0), normal, XMFLOAT2(0,0) };
+
+	_mesh->vertices[1] =
+	{ XMFLOAT3(1, 1, 0), normal, XMFLOAT2(1,0) };
+
+	_mesh->vertices[2] =
+	{ XMFLOAT3(1, -1, 0), normal, XMFLOAT2(1,1) };
+
+	_mesh->vertices[3] =
+	{ XMFLOAT3(-1, -1, 0), normal, XMFLOAT2(0,1) };
+
+	_mesh->indices[0] = 0; 	_mesh->indices[1] = 1; 	_mesh->indices[2] = 2;
+	_mesh->indices[3] = 0; 	_mesh->indices[4] = 2; 	_mesh->indices[5] = 3;
+
+}
+
 

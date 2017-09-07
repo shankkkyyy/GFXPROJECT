@@ -69,6 +69,11 @@ DirectX::XMMATRIX Camera::GetWorld() const
 	return XMLoadFloat4x4(&mWorld);
 }
 
+const DirectX::BoundingFrustum * const Camera::GetFrustum() const
+{
+	return &mFrustumView;
+}
+
 
 
 void Camera::Update(float _deltaTime)
@@ -157,10 +162,14 @@ void Camera::Update(float _deltaTime)
 
 }
 
-void Camera::GetNewPerspective()
+void Camera::OnResize()
 {
+	// calculate new projection matrix
 	XMMATRIX proj = XMMatrixPerspectiveFovLH(mFieldOfView, SceneRender::GetApp()->GetAspectRatio(), mNP, mFP);
 	XMStoreFloat4x4(&mProj, proj);
+
+	// calculate new frustum
+	BoundingFrustum::CreateFromMatrix(mFrustumView, proj);
 }
 
 void Camera::OnMouseMove()

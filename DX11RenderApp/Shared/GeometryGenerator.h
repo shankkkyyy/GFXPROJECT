@@ -20,6 +20,8 @@ public:
 	static void CreateSphere(float radius, UINT sliceCount, UINT stackCount, struct Mesh* meshData);
 
 	static void CreatePlane(float _width, float _depth, struct Mesh* _mesh);
+
+	static void CreateSreenQuad(struct Mesh* _mesh);
 	
 };
 

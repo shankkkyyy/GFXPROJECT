@@ -1,4 +1,9 @@
 
+struct VertexOutRTT
+{
+    float4 pos_h : SV_Position;
+    float2 uv_l : UV;
+};
 
 struct VertexInInst
 {

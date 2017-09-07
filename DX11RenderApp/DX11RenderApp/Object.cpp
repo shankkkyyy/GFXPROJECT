@@ -52,6 +52,8 @@ void Object::SetIndexOffset(UINT _indexOffset, UINT _vertexOffset)
 void Object::Edit(Mesh * const _mesh, const Material * const _material, ID3D11ShaderResourceView * const* _mTexMap, UINT _texCount)
 {
 	mMesh = _mesh;
+	;
+	BoundingBox::CreateFromPoints(mBound, mMesh->vertices.size(), &mMesh->vertices[0].pos, sizeof(Vertex));
 
 	if (_material == nullptr)
 		mToVRAM_PS.material = *Objects::GetDefMaterial();
@@ -147,6 +149,23 @@ void Object::Update(float _deltaTime)
 void Object::Draw()
 {
 	Scene* const app = Scene::GetBaseScene();
+
+	// Frustum Culling check
+
+	const Camera* const mainCam = app->GetMainCamera();
+
+	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
+	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
+
+	XMMATRIX worldView = XMMatrixMultiply(world, mainCam->GetViewXM());
+	BoundingBox boundingView;
+	mBound.Transform(boundingView, worldView);
+
+	if (mainCam->GetFrustum()->Contains(boundingView) == DirectX::DISJOINT)
+	{
+		return;
+	}
+
 	ID3D11DeviceContext* devContext = app->GetDeviceContext();
 
 	// set PS
@@ -159,12 +178,7 @@ void Object::Draw()
 
 #pragma region Upload cBuffer VS
 
-	// set VS cbuffer
-	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
-	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
-
-	// wvp, must be update every frame
-	XMMATRIX wvp = world * app->GetMainCamera()->GetViewProjXM();
+	XMMATRIX wvp = world * mainCam->GetViewProjXM();
 	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
 
 
@@ -188,6 +202,71 @@ void Object::Draw()
 #pragma endregion
 
 	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
+}
+
+void Object::DrawTransparent()
+{
+	Scene* const app = Scene::GetBaseScene();
+
+	// Frustum Culling check
+
+	const Camera* const mainCam = app->GetMainCamera();
+
+	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
+	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
+
+	XMMATRIX worldView = XMMatrixMultiply(world, mainCam->GetViewXM());
+	BoundingBox boundingView;
+	mBound.Transform(boundingView, worldView);
+
+	if (mainCam->GetFrustum()->Contains(boundingView) == DirectX::DISJOINT)
+	{
+		return;
+	}
+
+	ID3D11DeviceContext* devContext = app->GetDeviceContext();
+
+	// set PS
+	SetPS(app);
+
+	// set texture
+	devContext->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
+
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+
+#pragma region Upload cBuffer VS
+
+	XMMATRIX wvp = world * mainCam->GetViewProjXM();
+	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
+
+
+	ID3D11Buffer* _VSCB = app->GetVSCBPerObj();
+	ID3D11Buffer* _PSCB = app->GetPSCBPerObj();
+	// map VS cbuffer
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+	HR(app->GetDeviceContext()->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mToVRAM_VS, sizeof(mToVRAM_VS));
+	devContext->Unmap(_VSCB, 0);
+	devContext->VSSetConstantBuffers(1, 1, &_VSCB);
+
+
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+	HR(devContext->Map(_PSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	memcpy(mapResource.pData, &mToVRAM_PS, sizeof(mToVRAM_PS));
+	devContext->Unmap(_PSCB, 0);
+
+	devContext->PSSetConstantBuffers(1, 1, &_PSCB);
+#pragma endregion
+
+	// Draw Front Face
+	devContext->RSSetState(app->GetRSFrontCull());
+	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
+
+	// Draw Back face
+	devContext->RSSetState(nullptr);
+	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
+
 }
 
 void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11Buffer* _PSCB, const Camera* const _mCam)
@@ -226,10 +305,43 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
 }
 
-void Object::DrawInstance()
+UINT Object::DrawInstance(const InstanceData* const _instData)
 {
 
 	Scene* const app = Scene::GetBaseScene();
+	const Camera* const mainCamera = app->GetMainCamera();
+	XMMATRIX worldView, world;
+	BoundingBox boundingView;
+
+
+	D3D11_MAPPED_SUBRESOURCE mapResource;
+	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+	ID3D11Buffer* InstBuffer = app->GetVSIBPerFrame();
+	HR(app->GetDeviceContext()->Map(InstBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+
+	InstanceData* visibleInstance = reinterpret_cast<InstanceData*>(mapResource.pData);
+	UINT visibleInstCount = 0;
+	// Frustum Culling Check
+	for (UINT i = 0; i < mInstanceAmount; i++)
+	{
+		world = XMLoadFloat4x4(&_instData[i].world);
+		worldView = XMMatrixMultiply(world, mainCamera->GetViewXM());
+		mBound.Transform(boundingView, worldView);
+		if (mainCamera->GetFrustum()->Contains(boundingView) != DirectX::DISJOINT)
+		{
+			XMStoreFloat4x4(&visibleInstance[visibleInstCount].world, XMMatrixTranspose(world));
+			visibleInstCount++;
+		}
+	}
+	app->GetDeviceContext()->Unmap(InstBuffer, 0);
+
+
+	if (visibleInstCount == 0)
+	{
+		return visibleInstCount;
+	}
+
 
 
 	// set PS
@@ -238,7 +350,6 @@ void Object::DrawInstance()
 	// Set Texture
 	app->GetDeviceContext()->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
 	// updating CB for Ps
-	D3D11_MAPPED_SUBRESOURCE mapResource;
 	ID3D11Buffer* PSCBPerObj = app->GetPSCBPerObj();
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	HR(app->GetDeviceContext()->Map(PSCBPerObj, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
@@ -249,7 +360,10 @@ void Object::DrawInstance()
 
 
 	app->GetDeviceContext()->DrawIndexedInstanced(
-		(UINT)mMesh->indices.size(), mInstanceAmount, mIndexOffset, mVertexOffset, 0);
+		(UINT)mMesh->indices.size(), visibleInstCount, mIndexOffset, mVertexOffset, 0);
+
+	return visibleInstCount;
+
 }
 
 bool Object::CompareDepth(const Object * const _left, const Object * const _right)
@@ -328,7 +442,6 @@ Mesh*           Objects::defSphere_mesh = nullptr;
 Material*       Objects::def_material = nullptr;
 Material*       Objects::silver_material = nullptr;
 
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::grass_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::car_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::sky_texture = nullptr;
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Objects::floor_texture = nullptr;
@@ -411,10 +524,6 @@ ID3D11ShaderResourceView * Objects::GetCarTexture()
 	return car_texture.Get();
 }
 
-ID3D11ShaderResourceView * Objects::GetGrassTexture()
-{
-	return grass_texture.Get();
-}
 
 ID3D11ShaderResourceView * Objects::GetSkyTexuture()
 {
@@ -452,8 +561,7 @@ void Objects::LoadAssets(ID3D11Device* _device)
 	GeometryGenerator::CreatePlane(1, 1, defPlane_mesh);
 	GeometryGenerator::CreateSphere(5, 16, 16,  defSphere_mesh);
 
-	HR(CreateWICTextureFromFile(_device, L"../Models/car.png", nullptr,        car_texture  .GetAddressOf()));
-	HR(CreateWICTextureFromFile(_device, L"../Models/grass.png", nullptr,      grass_texture.GetAddressOf()));
+	HR(CreateDDSTextureFromFile(_device, L"../Models/car.dds", nullptr,        car_texture  .GetAddressOf()));
 	HR(CreateDDSTextureFromFile(_device, L"../Models/sunsetcube.dds", nullptr, sky_texture  .GetAddressOf()));
 	HR(CreateDDSTextureFromFile(_device, L"../Models/checkboard.dds", nullptr, floor_texture.GetAddressOf()));
 	HR(CreateDDSTextureFromFile(_device, L"../Models/brick01.dds", nullptr,    wall_texture.GetAddressOf()));

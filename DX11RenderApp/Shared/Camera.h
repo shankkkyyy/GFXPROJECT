@@ -1,5 +1,5 @@
 #pragma once
-#include <DirectXMath.h>
+#include "d3dUtil.h"
 
 class Camera
 {
@@ -25,13 +25,14 @@ public:
 	DirectX::XMMATRIX GetViewProjXM() const;
 
 	DirectX::XMMATRIX GetWorld() const;
+	const DirectX::BoundingFrustum* const GetFrustum() const;
 	
 
 
 	void Update(float _deltaTime);
 
 	// Get new projection matrix when fov, np, fp, ratio get changed
-	void GetNewPerspective();
+	void OnResize();
 
 	void OnMouseMove();
 
@@ -47,7 +48,7 @@ private:
 	
 	float mFP;
 
-
+	DirectX::BoundingFrustum mFrustumView;
 
 	DirectX::XMFLOAT3 mUp;
 

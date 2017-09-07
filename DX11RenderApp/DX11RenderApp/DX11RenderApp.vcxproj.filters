@@ -63,9 +63,6 @@
     <ClCompile Include="..\Shared\DDSTextureLoader.cpp">
       <Filter>Shared</Filter>
     </ClCompile>
-    <ClCompile Include="..\Shared\WICTextureLoader.cpp">
-      <Filter>Shared</Filter>
-    </ClCompile>
     <ClCompile Include="Scene.cpp">
       <Filter>Apps</Filter>
     </ClCompile>
@@ -73,9 +70,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SkyBox.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ScreenQuad.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -116,9 +110,6 @@
     <ClInclude Include="..\Shared\ddstextureloader.h">
       <Filter>Shared</Filter>
     </ClInclude>
-    <ClInclude Include="..\Shared\WICTextureLoader.h">
-      <Filter>Shared</Filter>
-    </ClInclude>
     <ClInclude Include="Scene.h">
       <Filter>Apps</Filter>
     </ClInclude>
@@ -126,9 +117,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SkyBox.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ScreenQuad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -164,6 +152,12 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\PSd2.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VSRTT.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PSRTT_red.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

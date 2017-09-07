@@ -20,6 +20,11 @@ ID3D11VertexShader * Shader::GetInstVS() const
 	return mInst_VS.Get();
 }
 
+ID3D11VertexShader * Shader::GetRTTVS() const
+{
+	return mRTT_VS.Get();
+}
+
 ID3D11PixelShader * Shader::GetPSt0() const
 {
 	return mobj_PSt0.Get();
@@ -33,6 +38,11 @@ ID3D11PixelShader * Shader::GetPSd1() const
 ID3D11PixelShader * Shader::GetPSd2() const
 {
 	return mobj_PSd2.Get();
+}
+
+ID3D11PixelShader * Shader::GetRTTPSRed() const
+{
+	return mRTT_PSRed.Get();
 }
 
 ID3D11PixelShader * Shader::GetObjShaderPS() const
@@ -108,6 +118,12 @@ void Shader::LoadShaders(ID3D11Device * _device)
 			InputLayoutDesc::IDBasic32Inst, _countof(InputLayoutDesc::IDBasic32Inst), byteCode.data(), byteCode.size(), mILBasic32Inst.GetAddressOf()));
 	}
 
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSRTT.cso", byteCode))
+	{
+		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mRTT_VS.GetAddressOf()));
+
+	}
+
 
 
 	// Load Pixel shader for basic32 Vertex
@@ -131,6 +147,12 @@ void Shader::LoadShaders(ID3D11Device * _device)
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mObjShadow_PS.GetAddressOf()));
 	}
 
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSRTT_red.cso", byteCode))
+	{
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mRTT_PSRed.GetAddressOf()));
+	}
+
+
 #pragma endregion
 
 #pragma region Load shaders for SkyBox
@@ -144,7 +166,7 @@ void Shader::LoadShaders(ID3D11Device * _device)
 	// Load PS for SkyBox
 	if (d3dHelper::LoadShaderByteCode(L"Shaders/SkyBoxPS.cso", byteCode))
 	{
-		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, msky_PS.GetAddressOf()))
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, msky_PS.GetAddressOf()));
 	}
 #pragma endregion
 

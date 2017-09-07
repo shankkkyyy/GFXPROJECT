@@ -12,7 +12,7 @@ Scene::Scene(HINSTANCE _hInstance) :
 
 	mShaders = new Shader();
 	mSkyBox = new SkyBox();
-	bEnable4xMsaa = true;
+	bEnable4xMsaa = false;
 	mBaseScene = this;
 }
 
@@ -80,8 +80,6 @@ Scene * Scene::GetBaseScene()
 	return mBaseScene;
 }
 
-
-
 ID3D11Buffer * Scene::GetPSCBPerObj() const
 {
 	return mCBPerObj_PS.Get();
@@ -90,6 +88,11 @@ ID3D11Buffer * Scene::GetPSCBPerObj() const
 ID3D11Buffer * Scene::GetVSCBPerObj() const
 {
 	return mCBPerObj_VS.Get();
+}
+
+ID3D11Buffer * Scene::GetVSIBPerFrame() const
+{
+	return mInstB.Get();
 }
 
 Shader * Scene::GetShaders() const
@@ -129,7 +132,7 @@ void Scene::ObjInitAndEdit()
 	sphere->Edit(Objects::GetSphereMesh(), Objects::GetSilverMaterial(), nullptr, 0);
 	sphere->SetPosition(XMFLOAT3(-100, 10, -30));
 	sphere->SetScale(XMFLOAT3(0.5f, 0.5f, 0.5f));
-	sphere->SetInstanceCount(10);
+	sphere->SetInstanceCount(400);
 	mInstances->push_back(sphere);
 
 	// Car
@@ -207,13 +210,23 @@ void Scene::ObjInitAndEdit()
 	// build instance data
 	mInstanceData = new std::vector<InstanceData>(sphere->GetInstanceAmount());
 
-	for (size_t i = 0; i < mInstanceData->size(); i++)
+	UINT column = 20;
+	UINT raw = (UINT)mInstanceData->size() / column;
+
+	size_t index;
+
+	for (size_t iR = 0; iR < raw; iR++)
 	{
-		(*mInstanceData)[i].world = sphere->GetWorldMatrix();
-		(*mInstanceData)[i].world(3, 0) += 20 * i;
-		XMStoreFloat4x4(&(*mInstanceData)[i].world, 
-			XMMatrixTranspose(XMLoadFloat4x4(&(*mInstanceData)[i].world)) );
+		for (size_t iC = 0; iC < column; iC++)
+		{
+			index = iR * column + iC;
+			(*mInstanceData)[index].world = sphere->GetWorldMatrix();
+			(*mInstanceData)[index].world(3, 0) += 20 * iC;//x
+			(*mInstanceData)[index].world(3, 1) += 10 * iR;
+		}
 	}
+
+
 
 
 	mTreeAmount = 15;
@@ -319,7 +332,8 @@ void Scene::GetIndexAndVertexStartIndex(size_t& iOffset, size_t& vOffset, UINT *
 
 void Scene::BuildGeometry()
 {
-
+	// for screen quad
+	GeometryGenerator::CreateSreenQuad(&mScreenQuadGeo);
 	// for Obj
 	UINT                   objVerticeSize = 0, objIndicesSize = 0;
 	D3D11_BUFFER_DESC      vbd, ibd, instbd;
@@ -332,6 +346,8 @@ void Scene::BuildGeometry()
 	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mOpagueObjs);
 	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mInstances);
 	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mTransparentObjs);
+	objVerticeSize += (UINT)mScreenQuadGeo.vertices.size();
+	objIndicesSize += (UINT)mScreenQuadGeo.indices.size();
 
 	// load all mesh into a vertex array
 	// load all indices into an indices array
@@ -342,6 +358,16 @@ void Scene::BuildGeometry()
 	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mOpagueObjs);
 	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mInstances);
 	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mTransparentObjs);
+	mScreenQuadIOffset = (UINT)iOffset;
+	mScreenQuadVOffset = (UINT)vOffset;
+	for ( i = 0; i < mScreenQuadGeo.vertices.size(); i++)
+	{
+		objVertices[vOffset + i] = mScreenQuadGeo.vertices[i];
+	}
+	for ( i = 0; i < mScreenQuadGeo.indices.size(); i++)
+	{
+		objIndices[iOffset + i] = mScreenQuadGeo.indices[i];
+	}
 
 #pragma endregion
 
@@ -475,14 +501,24 @@ void Scene::UpdateScene(float _deltaTime)
 
 void Scene::DrawScene()
 {
-	const Camera* const mainCamera = GetMainCamera();
-	XMFLOAT3 camPos = mainCamera->GetPosition();
 
-	// clear render view and depth view
-	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Black);
+
+	md3dImmediateContext->OMSetRenderTargets(1, mOffscreenRTV.GetAddressOf(), md3dDSV);
+	md3dImmediateContext->ClearRenderTargetView(mOffscreenRTV.Get(), DirectX::Colors::Black);
 	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
+
+	//md3dImmediateContext->OMSetRenderTargets(1, &md3dRTV, md3dDSV);
+	//md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Snow);
+	//md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+
+
+
+#pragma region Render Offscreen
 	// update frame cbuffer for PS and VS
+	const Camera* const mainCamera = GetMainCamera();
+	XMFLOAT3 camPos = mainCamera->GetPosition();
 	D3D11_MAPPED_SUBRESOURCE mSource;
 
 #pragma region   Upload PerFrame cBuffer VS
@@ -531,11 +567,31 @@ void Scene::DrawScene()
 #pragma endregion
 
 
-
-
 	DrawOpaques();
 	DrawSkyBox();
 	DrawTransparents();
+#pragma endregion
+
+
+
+	md3dImmediateContext->OMSetRenderTargets(1, &md3dRTV, md3dDSV);
+	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Snow);
+	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+
+
+#pragma region Render Screen Quad
+
+	md3dImmediateContext->PSSetShaderResources(9, 1, mOffscreenSRV.GetAddressOf());
+
+	md3dImmediateContext->PSSetShader(mShaders->GetRTTPSRed(), nullptr, 0);
+	md3dImmediateContext->VSSetShader(mShaders->GetRTTVS(), nullptr, 0);
+
+	md3dImmediateContext->DrawIndexed((UINT)mScreenQuadGeo.indices.size(), mScreenQuadIOffset, mScreenQuadVOffset);
+
+	ID3D11ShaderResourceView* offscreenSRV = nullptr;
+	md3dImmediateContext->PSSetShaderResources(9, 1, &offscreenSRV);
+#pragma endregion
 
 
 	HR(mSwapChain->Present(0, 0));
@@ -586,7 +642,7 @@ void Scene::DrawOpaques()
 
 	for (size_t iInst = 0; iInst < mInstances->size(); iInst++)
 	{
-		(*mInstances)[iInst]->DrawInstance();
+		(*mInstances)[iInst]->DrawInstance(mInstanceData->data());
 	}
 
 
@@ -717,12 +773,8 @@ void Scene::DrawTransparents()
 	// draw from far to close
 	for (iTrans = size - 1; iTrans >= 0 ; iTrans--)
 	{
-		// Draw Front face first
-		md3dImmediateContext->RSSetState(mRSFrontCull.Get());
-		(*mTransparentObjs)[iTrans]->Draw();
-		// Draw Back face
-		md3dImmediateContext->RSSetState(nullptr);
-		(*mTransparentObjs)[iTrans]->Draw();
+
+		(*mTransparentObjs)[iTrans]->DrawTransparent();
 	}
 
 	// draw a car shadow

@@ -98,6 +98,12 @@ protected:
 	ID3D11RenderTargetView* md3dRTV;
 	ID3D11DepthStencilView* md3dDSV;
 
+
+	// offscreen buffer
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>   mOffscreenRTV         = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mOffscreenSRV         = nullptr;
+
+	
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>   mRSFrontCull           = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>   mRSNoCull              = nullptr;
 																	       
@@ -120,6 +126,12 @@ protected:
 	int mClientWidth;
 	int mClientHeight;
 	bool bEnable4xMsaa;
+
+public:
+
+
+	ID3D11RasterizerState* GetRSFrontCull() const;
+	ID3D11RasterizerState* GetRSNoCull() const;
 
 private:
 

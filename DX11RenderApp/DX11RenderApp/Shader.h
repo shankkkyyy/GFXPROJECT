@@ -15,10 +15,15 @@ private:
 	
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> mobj_VS;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> mInst_VS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> mRTT_VS;
+
 
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> mobj_PSt0;
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> mobj_PSd1;
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> mobj_PSd2;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> mRTT_PSRed;
+
+
 
 
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> mObjShadow_PS;
@@ -41,10 +46,13 @@ public:
 
 	ID3D11VertexShader* GetObjVS() const;
 	ID3D11VertexShader* GetInstVS() const;
+	ID3D11VertexShader* GetRTTVS() const;
+
 
 	ID3D11PixelShader*  GetPSt0() const;
 	ID3D11PixelShader*  GetPSd1() const;
 	ID3D11PixelShader*  GetPSd2() const;
+	ID3D11PixelShader*  GetRTTPSRed() const;
 
 
 

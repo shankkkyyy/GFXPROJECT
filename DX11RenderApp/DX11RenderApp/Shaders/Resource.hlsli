@@ -42,6 +42,8 @@ Texture2D diffuseMap : register(t0);
 Texture2D diffuseMap1 : register(t1);
 
 
+Texture2D RTT : register(t9);
+
 TextureCube skyBox : register(t10);
 
 Texture2DArray diffuseMapArray : register(t11);

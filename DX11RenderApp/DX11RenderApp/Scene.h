@@ -50,8 +50,19 @@ private:
 #pragma endregion
 
 
+#pragma region ScreenQuad
+
+	Mesh mScreenQuadGeo;
+	UINT mScreenQuadIOffset, mScreenQuadVOffset;
+
+
+#pragma endregion
+
+
 	float pointSpeedY = 0;
 	float spotSpeedY = 0;
+
+
 
 
 public:
@@ -66,12 +77,8 @@ public:
 
 	ID3D11Buffer* GetPSCBPerObj() const;
 	ID3D11Buffer* GetVSCBPerObj() const;
+	ID3D11Buffer* GetVSIBPerFrame() const;
 	Shader*  GetShaders() const;
-	//ID3D11Buffer* Get
-	//ID3D11Buffer* Get
-	//ID3D11Buffer* Get
-	//ID3D11Buffer* Get
-	//ID3D11Buffer* Get
 
 
 
@@ -82,7 +89,6 @@ private:
 
 	// assign mesh, texture and material
 	void ObjInitAndEdit();
-
 
 	void GetIndexAndVertexSize(UINT& objVerticeSize, UINT& objIndicesSize, std::vector<Object*>* _objList);
 
@@ -102,6 +108,8 @@ private:
 	void DrawSkyBox();
 
 	void DrawTransparents();
+
+	
 
 };
 

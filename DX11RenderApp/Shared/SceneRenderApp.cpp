@@ -26,7 +26,7 @@ void SceneRender::OnResize()
 {
 	D3DApp::OnResize();
 
-	mMainCamera->GetNewPerspective();
+	mMainCamera->OnResize();
 }
 
 void SceneRender::UpdateScene(float _deltaTime)
