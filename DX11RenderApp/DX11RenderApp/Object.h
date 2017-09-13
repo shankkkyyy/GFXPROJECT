@@ -38,7 +38,7 @@ protected:
 
 protected:
 
-	void SetPS(class Scene* const _app);
+	void SetPS(class Engine* const _app);
 
 public:
 

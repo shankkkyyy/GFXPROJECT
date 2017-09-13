@@ -1,18 +1,19 @@
 #pragma once
 
 #include "SceneRenderApp.h"
+#include "BaseScene.h"
 #include "Shader.h"
 #include "Object.h"
 
 
-class Scene : public SceneRender
+class Engine : public SceneRender
 {
 public:
-	Scene(HINSTANCE _hInstance);
-	~Scene();
+	Engine(HINSTANCE _hInstance);
+	~Engine();
 private:
 
-	static Scene* mBaseScene;
+	static Engine* mEngine;
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mVB            = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mGeoVB         = nullptr;
@@ -24,27 +25,28 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerObj_PS   = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mCBPerFrame_GS = nullptr;
 
-
 	Shader* mShaders = nullptr;
-	Objects mAssetsPool;
+	Objects* mAssetsPool = nullptr;
 
 	VSCBPerFrame mToVRAMPerFrame_VS;
 	PSCBPerFrame mToVRAMPerFrame_PS;
 	GSCBPerFrame mToVRAMPerFrame_GS;
 
-	std::vector<InstanceData>* mInstanceData = nullptr;
 
 	class SkyBox*          mSkyBox = nullptr;
 
 	std::vector<Object*>*  mOpagueObjs      = nullptr;
 	std::vector<Object*>*  mTransparentObjs = nullptr;
 	std::vector<Object*>*  mInstances       = nullptr;
+	std::vector<InstanceData>* mInstanceData = nullptr;
 
+
+	
 
 #pragma region Geometry Shader pratice
 
-	UINT mTreeAmount = 0;
-	VertexBB* mTrees = nullptr;
+	UINT       mTreeAmount = 0;
+	VertexBB*  mTrees = nullptr;
 	PSCBPerObj mTreeToVRAM;
 
 #pragma endregion
@@ -61,9 +63,9 @@ private:
 
 	float pointSpeedY = 0;
 	float spotSpeedY = 0;
+	bool  bBlur = false;
 
-
-
+	CountrySide* mCountrySideScene = nullptr;
 
 public:
 
@@ -71,26 +73,23 @@ public:
 
 public:
 
-	static Scene* GetBaseScene();
-
-
+	static Engine* GetEngine();
 
 	ID3D11Buffer* GetPSCBPerObj() const;
 	ID3D11Buffer* GetVSCBPerObj() const;
 	ID3D11Buffer* GetVSIBPerFrame() const;
 	Shader*  GetShaders() const;
 
-
-
-
 private:
+
+	void LoadAndLinkResource();
 
 	void CreateConstantBuffer();
 
 	// assign mesh, texture and material
 	void ObjInitAndEdit();
 
-	void GetIndexAndVertexSize(UINT& objVerticeSize, UINT& objIndicesSize, std::vector<Object*>* _objList);
+	void GetIndexAndVertexSize(UINT& totalVerticeSize, UINT& totalIndicesSize, std::vector<Object*>* _objList);
 
 	void GetIndexAndVertexStartIndex(size_t& iOffset, size_t& vOffset, UINT* _indices, Vertex* _vertices, std::vector<Object*>* _objList);
 
@@ -101,6 +100,10 @@ private:
 
 	void UpdateScene(float _deltaTime) override;
 
+	void DrawOffscreen();
+
+	void DrawRTT();
+
 	void DrawScene() override;	
 
 	void DrawOpaques();
@@ -109,7 +112,7 @@ private:
 
 	void DrawTransparents();
 
-	
+	void Input();
 
 };
 

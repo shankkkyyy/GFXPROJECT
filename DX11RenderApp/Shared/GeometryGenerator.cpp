@@ -212,7 +212,7 @@ void GeometryGenerator::CreateSphere(float radius, UINT sliceCount, UINT stackCo
 
 }
 
-void GeometryGenerator::CreatePlane(float _width, float _depth, Mesh * _mesh)
+void GeometryGenerator::CreatePlane(float _width, float _depth, Mesh* _mesh)
 {
 	_mesh->indices.clear();
 	_mesh->vertices.clear();

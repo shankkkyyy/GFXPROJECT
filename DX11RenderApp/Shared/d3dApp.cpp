@@ -456,14 +456,14 @@ void D3DApp::OnResize()
 	ReleaseCOM(md3dDSV);
 	ReleaseCOM(mDepthStencilBuffer);
 
-	//ID3D11RenderTargetView* offscreenRTV = mOffscreenRTV.Get();
-	//ID3D11ShaderResourceView* offscreenSRV = mOffscreenSRV.Get();
 
 	mOffscreenRTV.Reset();
 	mOffscreenSRV.Reset();
+	mOffscreenUAV.Reset();
 
-	//ReleaseCOM(offscreenRTV);
-	//ReleaseCOM(offscreenSRV);
+	mHorBluredSRV.Reset();
+	mHorBluredUAV.Reset();
+
 
 
 #pragma region Recreate Render Target View
@@ -509,9 +509,10 @@ void D3DApp::OnResize()
 #pragma endregion
 
 
-#pragma region Recreate Offscreen Render Target view
+#pragma region Recreate Offscreen RTV, UAV, SRV
 	
 	D3D11_TEXTURE2D_DESC texDesc;
+	ZeroMemory(&texDesc, sizeof(texDesc));
 	texDesc.Width = mClientWidth;
 	texDesc.Height = mClientHeight;
 	texDesc.MipLevels = 1;
@@ -528,37 +529,63 @@ void D3DApp::OnResize()
 		texDesc.SampleDesc.Quality = 0;
 	}
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
-	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE| D3D11_BIND_UNORDERED_ACCESS;
 	texDesc.CPUAccessFlags = 0;
 	texDesc.MiscFlags = 0;
 
-
 	ID3D11Texture2D* offscreenTex = nullptr;
-
 	HR(md3dDevice->CreateTexture2D(&texDesc, nullptr, &offscreenTex));
-
-	//D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
-	//ZeroMemory(&rtvDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-	//rtvDesc.Format = texDesc.Format;
-	//rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	//rtvDesc.Texture2D.MipSlice = 0;
-
 	HR(md3dDevice->CreateRenderTargetView(offscreenTex, 0, mOffscreenRTV.GetAddressOf()));
-
-	//D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	//srvDesc.Format = texDesc.Format;
-	//srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	//srvDesc.Texture2D.MostDetailedMip = 0;
-	//srvDesc.Texture2D.MipLevels = 1;
-
 	HR(md3dDevice->CreateShaderResourceView(offscreenTex, 0, mOffscreenSRV.GetAddressOf()));
-
+	HR(md3dDevice->CreateUnorderedAccessView(offscreenTex, 0, mOffscreenUAV.GetAddressOf()));
 
 	ReleaseCOM(offscreenTex);
 #pragma endregion
 
-	// bind view to out merge stage
-	//md3dImmediateContext->OMSetRenderTargets(1, &md3dRTV, md3dDSV);
+
+#pragma region Recreate HoriBlur, UAV, SRV
+
+	ZeroMemory(&texDesc, sizeof(texDesc));
+	texDesc.Width = mClientWidth;
+	texDesc.Height = mClientHeight;
+	texDesc.MipLevels = 1;
+	texDesc.ArraySize = 1;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	if (bEnable4xMsaa)
+	{
+		texDesc.SampleDesc.Count = 4;
+		texDesc.SampleDesc.Quality = m4xMsaaQuality - 1;
+	}
+	else
+	{
+		texDesc.SampleDesc.Count = 1;
+		texDesc.SampleDesc.Quality = 0;
+	}
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = 0;
+
+	ID3D11Texture2D* horBlurTex = nullptr;
+	HR(md3dDevice->CreateTexture2D(&texDesc, nullptr, &horBlurTex));
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory(&srvDesc, sizeof(srvDesc));
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	HR(md3dDevice->CreateShaderResourceView(horBlurTex, &srvDesc, mHorBluredSRV.GetAddressOf()));
+
+	D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+	ZeroMemory(&uavDesc, sizeof(uavDesc));
+	uavDesc.Format = texDesc.Format;
+	uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+	uavDesc.Texture2D.MipSlice = 0;
+	HR(md3dDevice->CreateUnorderedAccessView(horBlurTex, &uavDesc, mHorBluredUAV.GetAddressOf()));
+
+	ReleaseCOM(horBlurTex);
+#pragma endregion
 
 
 #pragma region Setup ViewPort	
@@ -618,14 +645,29 @@ ID3D11DeviceContext * D3DApp::GetDeviceContext() const
 	return md3dImmediateContext;
 }
 
+ID3D11BlendState * D3DApp::GetBSTransparent() const
+{
+	return mBSTransparent.Get();
+}
+
 ID3D11RasterizerState * D3DApp::GetRSFrontCull() const
 {
 	return mRSFrontCull.Get();
 }
 
+ID3D11DepthStencilState * D3DApp::GetDSLessEqual() const
+{
+	return mDSLessEqual.Get();
+}
+
 ID3D11RasterizerState * D3DApp::GetRSNoCull() const
 {
 	return mRSNoCull.Get();
+}
+
+ID3D11RasterizerState * D3DApp::GetRSWireFrame() const
+{
+	return mRSWireFrame.Get();
 }
 
 void D3DApp::CreateRasterizationStates()
@@ -647,6 +689,17 @@ void D3DApp::CreateRasterizationStates()
 
 	rd.CullMode = D3D11_CULL_FRONT;
 	HR(md3dDevice->CreateRasterizerState(&rd, mRSFrontCull.GetAddressOf()));
+
+
+	D3D11_RASTERIZER_DESC wireframeDesc;
+	ZeroMemory(&wireframeDesc, sizeof(D3D11_RASTERIZER_DESC));
+	wireframeDesc.FillMode = D3D11_FILL_WIREFRAME;
+	wireframeDesc.CullMode = D3D11_CULL_BACK;
+	wireframeDesc.FrontCounterClockwise = false;
+	wireframeDesc.DepthClipEnable = true;
+
+	HR(md3dDevice->CreateRasterizerState(&wireframeDesc, mRSWireFrame.GetAddressOf()));
+
 }
 
 void D3DApp::CreateSamplerStates()

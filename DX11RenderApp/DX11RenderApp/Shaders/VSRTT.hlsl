@@ -9,5 +9,4 @@ VertexOutRTT main(VertexIn pin)
     vout.pos_h = float4(pin.pos_l, 1.0f);  
     vout.uv_l = pin.uv_l;
     return vout;
-
 }

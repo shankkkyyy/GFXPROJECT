@@ -29,6 +29,8 @@ cbuffer PSPerFrame : register(b0)
     float gFogStart;
     Light gLight[3];
     float4 gAmbientLight;
+    uint4 gPSSettings;
+
 }
 
 cbuffer PSPerObject : register(b1)
@@ -37,18 +39,31 @@ cbuffer PSPerObject : register(b1)
     int4 objRenderSetting;
 }
 
+cbuffer HSPerFrame : register(b0)
+{
+    float3 gEyePositionHS;
+    float pad_0;
+}
+
+cbuffer DSPerFrame : register(b0)
+{
+    float4x4 gDSwvp;
+}
+
+
 
 Texture2D diffuseMap : register(t0);
 Texture2D diffuseMap1 : register(t1);
 
 
-Texture2D RTT : register(t9);
-
+Texture2D RTT : register(t9);                     // For Blur
 TextureCube skyBox : register(t10);
-
 Texture2DArray diffuseMapArray : register(t11);
+Texture2D heightMap : register(t12);
 
+RWTexture2D<unorm float4> PostProcOutput : register(u0); // For BLur
 
 SamplerState ss : register(s0);
 SamplerState ssClamp : register(s1);
+
 

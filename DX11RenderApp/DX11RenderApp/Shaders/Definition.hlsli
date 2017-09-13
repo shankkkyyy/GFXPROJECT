@@ -19,6 +19,11 @@ struct VertexInPos
     float3 pos_l : POSITION;
 };
 
+struct DomainOut
+{
+    float4 pos_h : SV_POSITION;
+};
+
 struct VertexOutPos
 {
     float4 pos_h : SV_Position;
@@ -74,3 +79,6 @@ struct Light
     float spotAngle;
 };
 
+#define RED 0x52
+#define GREEN 0x47
+#define BLUE 0x42

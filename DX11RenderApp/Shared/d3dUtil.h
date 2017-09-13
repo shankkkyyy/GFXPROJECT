@@ -11,6 +11,11 @@
 #define KEY_S 0x53
 #define KEY_A 0x41
 #define KEY_D 0x44
+#define KEY_R 0x52
+#define KEY_G 0x47
+#define KEY_B 0x42
+
+#define divBy256 1.0f/256.0f
 
 
 // has d3d11.h
@@ -129,6 +134,7 @@ struct PSCBPerFrame
 	float     fogStart; //32
 	Light     light[3];    //32 + 48 * 3 = 176
 	XMFLOAT4  ambientLight; //192
+	XMUINT4    settings;
 };
 
 struct GSCBPerFrame
@@ -149,6 +155,8 @@ struct PSCBPerObj
 	Material   material; // 4
 	XMINT4     renderSetting; // x: whether has diffuse texture, y: isTransparent, z: tex Amount
 };
+
+
 
 struct InstanceData
 {

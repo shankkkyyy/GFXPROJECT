@@ -45,6 +45,16 @@ ID3D11PixelShader * Shader::GetRTTPSRed() const
 	return mRTT_PSRed.Get();
 }
 
+ID3D11ComputeShader * Shader::GetBlurHorCS() const
+{
+	return mBlurHor_CS.Get();
+}
+
+ID3D11ComputeShader * Shader::GetBlurVerCS() const
+{
+	return mBlurVert_CS.Get();
+}
+
 ID3D11PixelShader * Shader::GetObjShaderPS() const
 {
 	return mObjShadow_PS.Get();
@@ -73,6 +83,26 @@ ID3D11GeometryShader * Shader::GetBBGS() const
 ID3D11PixelShader * Shader::GetBBPS() const
 {
 	return mBB_PS.Get();
+}
+
+ID3D11VertexShader * Shader::GetTessVS() const
+{
+	return mTess_VS.Get();
+}
+
+ID3D11HullShader * Shader::GetTessHS() const
+{
+	return mTess_HS.Get();
+}
+
+ID3D11DomainShader * Shader::GetTessDS() const
+{
+	return mTess_DS.Get();
+}
+
+ID3D11PixelShader * Shader::GetTessPS() const
+{
+	return mTess_PS.Get();
 }
 
 ID3D11InputLayout * Shader::GetPosIL() const
@@ -188,6 +218,44 @@ void Shader::LoadShaders(ID3D11Device * _device)
 	{
 		HR(_device->CreateGeometryShader (byteCode.data(), byteCode.size(), nullptr, mBB_GS.GetAddressOf()));
 	}
+#pragma endregion
+
+
+#pragma region Load Shaders for Blur
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/CSHorBlur.cso", byteCode))
+	{
+		HR(_device->CreateComputeShader(byteCode.data(), byteCode.size(), nullptr, mBlurHor_CS.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/CSVertBlur.cso", byteCode))
+	{
+		HR(_device->CreateComputeShader(byteCode.data(), byteCode.size(), nullptr, mBlurVert_CS.GetAddressOf()));
+	}
+#pragma endregion
+
+
+#pragma region Load Shaders for Tess
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSPassTrough12.cso", byteCode))
+	{
+		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mTess_VS.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/HSPosPassThrough.cso", byteCode))
+	{
+		HR(_device->CreateHullShader(byteCode.data(), byteCode.size(), nullptr, mTess_HS.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/DS.cso", byteCode))
+	{
+		HR(_device->CreateDomainShader(byteCode.data(), byteCode.size(), nullptr, mTess_DS.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSTess.cso", byteCode))
+	{
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mTess_PS.GetAddressOf()));
+	}
+
 #pragma endregion
 
 }

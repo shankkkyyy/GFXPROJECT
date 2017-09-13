@@ -1,9 +1,9 @@
-#include "Scene.h"
+#include "Engine.h"
 #include "SkyBox.h"
 
-Scene* Scene::mBaseScene = nullptr;
+Engine* Engine::mEngine = nullptr;
 
-Scene::Scene(HINSTANCE _hInstance) : 
+Engine::Engine(HINSTANCE _hInstance) : 
 	SceneRender(_hInstance) 
 {
 	mClientWidth = 1280;
@@ -13,10 +13,11 @@ Scene::Scene(HINSTANCE _hInstance) :
 	mShaders = new Shader();
 	mSkyBox = new SkyBox();
 	bEnable4xMsaa = false;
-	mBaseScene = this;
+	mAssetsPool = new Objects();
+	mEngine = this;
 }
 
-Scene::~Scene()
+Engine::~Engine()
 {
 	delete mShaders;
 	delete mSkyBox;
@@ -42,18 +43,18 @@ Scene::~Scene()
 
 	delete mInstanceData;
 
+	delete mAssetsPool;
+	
+	delete mCountrySideScene;
+
 }
 
-bool Scene::InitApp()
+bool Engine::InitApp()
 {
 	if (SceneRender::InitApp())
 	{
 
-		// Load Models and texture
-		Objects::LoadAssets(md3dDevice);
-
-		// Load shaders and create input layout
-		mShaders->LoadShaders(md3dDevice);
+		LoadAndLinkResource();
 
 		// create constant buffer
 		CreateConstantBuffer();
@@ -64,8 +65,12 @@ bool Scene::InitApp()
 		// build Geometry and push data into VRAM throught VB && IB buffer
 		BuildGeometry();
 
+
 		InitRenderSettings();
 
+		// Load Scenes
+		mCountrySideScene = new CountrySide();
+		//mCountrySideScene->InitScene();
 
 		return true;
 	}
@@ -75,32 +80,32 @@ bool Scene::InitApp()
 	}
 }
 
-Scene * Scene::GetBaseScene()
+Engine * Engine::GetEngine()
 {
-	return mBaseScene;
+	return mEngine;
 }
 
-ID3D11Buffer * Scene::GetPSCBPerObj() const
+ID3D11Buffer * Engine::GetPSCBPerObj() const
 {
 	return mCBPerObj_PS.Get();
 }
 
-ID3D11Buffer * Scene::GetVSCBPerObj() const
+ID3D11Buffer * Engine::GetVSCBPerObj() const
 {
 	return mCBPerObj_VS.Get();
 }
 
-ID3D11Buffer * Scene::GetVSIBPerFrame() const
+ID3D11Buffer * Engine::GetVSIBPerFrame() const
 {
 	return mInstB.Get();
 }
 
-Shader * Scene::GetShaders() const
+Shader * Engine::GetShaders() const
 {
 	return mShaders;
 }
 
-void Scene::ObjInitAndEdit()
+void Engine::ObjInitAndEdit()
 {
 
 #pragma region Scene Setup
@@ -295,16 +300,16 @@ void Scene::ObjInitAndEdit()
 
 }
 
-void Scene::GetIndexAndVertexSize(UINT & objVerticeSize, UINT & objIndicesSize, std::vector<Object*>* _objList)
+void Engine::GetIndexAndVertexSize(UINT & totalVerticeSize, UINT & totalIndicesSize, std::vector<Object*>* _objList)
 {
 	for (size_t i = 0; i < _objList->size(); i++)
 	{
-		objVerticeSize += (UINT)(*_objList)[i]->GetMesh()->vertices.size();
-		objIndicesSize += (UINT)(*_objList)[i]->GetMesh()->indices.size();
+		totalVerticeSize += (UINT)(*_objList)[i]->GetMesh()->vertices.size();
+		totalIndicesSize += (UINT)(*_objList)[i]->GetMesh()->indices.size();
 	}
 }
 
-void Scene::GetIndexAndVertexStartIndex(size_t& iOffset, size_t& vOffset, UINT * _indices, Vertex * _vertices, std::vector<Object*>* _objList)
+void Engine::GetIndexAndVertexStartIndex(size_t& iOffset, size_t& vOffset, UINT * _indices, Vertex * _vertices, std::vector<Object*>* _objList)
 {
 
 	for (size_t i = 0; i < _objList->size(); i++)
@@ -330,7 +335,7 @@ void Scene::GetIndexAndVertexStartIndex(size_t& iOffset, size_t& vOffset, UINT *
 	}
 }
 
-void Scene::BuildGeometry()
+void Engine::BuildGeometry()
 {
 	// for screen quad
 	GeometryGenerator::CreateSreenQuad(&mScreenQuadGeo);
@@ -438,13 +443,26 @@ void Scene::BuildGeometry()
 
 }
 
-void Scene::InitRenderSettings()
+void Engine::InitRenderSettings()
 {
 	ID3D11SamplerState* arr[2] = { mSSs[0].Get(), mSSs[1].Get() };
 	md3dImmediateContext->PSSetSamplers(0, _countof(arr), arr);
 }
 
-void Scene::CreateConstantBuffer()
+void Engine::LoadAndLinkResource()
+{
+	// Load Models and texture
+	Objects::LoadAssets(md3dDevice);
+
+	// Load shaders and create input layout
+	mShaders->LoadShaders(md3dDevice);
+
+	//Link the resources to the scene code base
+	BaseScene::LinkResource(this);
+
+}
+
+void Engine::CreateConstantBuffer()
 {
 	D3D11_BUFFER_DESC cbd;
 	ZeroMemory(&cbd, sizeof(cbd));
@@ -470,7 +488,7 @@ void Scene::CreateConstantBuffer()
 
 }
 
-void Scene::UpdateScene(float _deltaTime)
+void Engine::UpdateScene(float _deltaTime)
 {
 	CXMVECTOR zAxis = XMVectorSet(0, 0, 1, 0);
 	CXMVECTOR yAxis = XMVectorSet(0, 1, 0, 0);
@@ -497,25 +515,13 @@ void Scene::UpdateScene(float _deltaTime)
 
 
 	SceneRender::UpdateScene(_deltaTime);
+
+	Input();
+
 }
 
-void Scene::DrawScene()
+void Engine::DrawOffscreen()
 {
-
-
-	md3dImmediateContext->OMSetRenderTargets(1, mOffscreenRTV.GetAddressOf(), md3dDSV);
-	md3dImmediateContext->ClearRenderTargetView(mOffscreenRTV.Get(), DirectX::Colors::Black);
-	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-
-	//md3dImmediateContext->OMSetRenderTargets(1, &md3dRTV, md3dDSV);
-	//md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Snow);
-	//md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-
-
-
-#pragma region Render Offscreen
 	// update frame cbuffer for PS and VS
 	const Camera* const mainCamera = GetMainCamera();
 	XMFLOAT3 camPos = mainCamera->GetPosition();
@@ -570,34 +576,77 @@ void Scene::DrawScene()
 	DrawOpaques();
 	DrawSkyBox();
 	DrawTransparents();
-#pragma endregion
 
+}
 
-
-	md3dImmediateContext->OMSetRenderTargets(1, &md3dRTV, md3dDSV);
-	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Snow);
-	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-
-
-#pragma region Render Screen Quad
-
-	md3dImmediateContext->PSSetShaderResources(9, 1, mOffscreenSRV.GetAddressOf());
+void Engine::DrawRTT()
+{
 
 	md3dImmediateContext->PSSetShader(mShaders->GetRTTPSRed(), nullptr, 0);
 	md3dImmediateContext->VSSetShader(mShaders->GetRTTVS(), nullptr, 0);
 
+	// For house keeping
+	ID3D11ShaderResourceView* nullSRV = nullptr;
+	ID3D11UnorderedAccessView* nullUAV = nullptr;
+
+	if (bBlur)
+	{
+		// horizontal Blur
+		md3dImmediateContext->CSSetShaderResources(9, 1, mOffscreenSRV.GetAddressOf());
+		md3dImmediateContext->CSSetUnorderedAccessViews(0, 1, mHorBluredUAV.GetAddressOf(), nullptr);
+
+		md3dImmediateContext->CSSetShader(mShaders->GetBlurHorCS(), nullptr, 0);
+
+		UINT threadsGroupCountX = (UINT)ceil(mClientWidth * divBy256);
+		md3dImmediateContext->Dispatch(threadsGroupCountX, mClientHeight, 1);
+
+		md3dImmediateContext->CSSetShaderResources(9, 1, &nullSRV);
+		md3dImmediateContext->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+
+		//// vert blur
+		md3dImmediateContext->CSSetShaderResources(9, 1, mHorBluredSRV.GetAddressOf());
+		md3dImmediateContext->CSSetUnorderedAccessViews(0, 1, mOffscreenUAV.GetAddressOf(), nullptr);
+
+		md3dImmediateContext->CSSetShader(mShaders->GetBlurVerCS(), nullptr, 0);
+
+		UINT threadsGroupCountY = (UINT)ceil(mClientHeight * divBy256);
+		md3dImmediateContext->Dispatch(mClientWidth, threadsGroupCountY, 1);
+
+		md3dImmediateContext->CSSetShaderResources(9, 1, &nullSRV);
+		md3dImmediateContext->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+	}
+
+	md3dImmediateContext->PSSetShaderResources(9, 1, mOffscreenSRV.GetAddressOf());
+
+	// draw
 	md3dImmediateContext->DrawIndexed((UINT)mScreenQuadGeo.indices.size(), mScreenQuadIOffset, mScreenQuadVOffset);
+	md3dImmediateContext->PSSetShaderResources(9, 1, &nullSRV);
 
-	ID3D11ShaderResourceView* offscreenSRV = nullptr;
-	md3dImmediateContext->PSSetShaderResources(9, 1, &offscreenSRV);
-#pragma endregion
+}
 
+void Engine::DrawScene()
+{
+
+	//md3dImmediateContext->OMSetRenderTargets(1, mOffscreenRTV.GetAddressOf(), md3dDSV);
+	//md3dImmediateContext->ClearRenderTargetView(mOffscreenRTV.Get(), DirectX::Colors::Black);
+	//md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+	//DrawOffscreen();
+
+	md3dImmediateContext->OMSetRenderTargets(1, &md3dRTV, md3dDSV);
+	md3dImmediateContext->ClearRenderTargetView(md3dRTV, DirectX::Colors::Blue);
+	md3dImmediateContext->ClearDepthStencilView(md3dDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+	DrawOffscreen();
+	//mCountrySideScene->Render();
+
+
+	//DrawRTT();
 
 	HR(mSwapChain->Present(0, 0));
 }
 
-void Scene::DrawOpaques()
+void Engine::DrawOpaques()
 {
 
 	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -680,23 +729,18 @@ void Scene::DrawOpaques()
 
 	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	md3dImmediateContext->OMSetBlendState(mBSAlphaToCoverage.Get(), blendFactor, 0xffffffff);
 	md3dImmediateContext->Draw(mTreeAmount, 0);
-	md3dImmediateContext->OMSetBlendState(0, blendFactor, 0xffffffff);
-
 
 	// restore topology
 	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	md3dImmediateContext->GSSetShader(nullptr, 0, 0);
 
-
 #pragma endregion
-
 
 
 }
 
-void Scene::DrawSkyBox()
+void Engine::DrawSkyBox()
 {
 	// Change Rasterization State, draw Triangle inside out
 	md3dImmediateContext->RSSetState(mRSFrontCull.Get());
@@ -709,7 +753,7 @@ void Scene::DrawSkyBox()
 	md3dImmediateContext->OMSetDepthStencilState(0, 0);
 }
 
-void Scene::DrawTransparents()
+void Engine::DrawTransparents()
 {
 	const Camera* const mainCamera = GetMainCamera();
 
@@ -789,6 +833,54 @@ void Scene::DrawTransparents()
 	//restore blend state
 	md3dImmediateContext->OMSetDepthStencilState(nullptr, 0);
 	md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
+}
+
+void Engine::Input()
+{
+
+#pragma region Scene Switch
+
+	if (GetAsyncKeyState(VK_TAB) & 0x8000)
+	{
+
+	}
+
+#pragma endregion
+
+
+
+
+
+
+	if (GetAsyncKeyState(VK_LCONTROL) & 0x8000)
+	{
+		if (GetAsyncKeyState(KEY_B) & 0x8000)
+		{
+			mToVRAMPerFrame_PS.settings.x = KEY_B;
+		}
+		else if (GetAsyncKeyState(KEY_G) & 0x8000)
+		{
+			mToVRAMPerFrame_PS.settings.x = KEY_G;
+		}
+		else if (GetAsyncKeyState(KEY_R) & 0x8000)
+		{
+			mToVRAMPerFrame_PS.settings.x = KEY_R;
+		}
+	}
+	else if (GetAsyncKeyState(KEY_B) & 0x8000)
+	{
+		if (!bBlur)
+		{
+			bBlur = true;
+		}
+	}
+	else if (GetAsyncKeyState(VK_HOME) & 0x8000)
+	{
+		bBlur = false;
+		mToVRAMPerFrame_PS.settings.x = 0;
+	}
+
+
 }
 
 

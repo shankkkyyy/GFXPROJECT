@@ -36,11 +36,6 @@ public:
 	POINT                 GetLastMousePosition() const;
 	const WndInput* const GetWndInput() const;
 
-	ID3D11Device*         GetDevice()        const;
-	ID3D11DeviceContext*  GetDeviceContext() const;
-
-
-
 	int Run();
 
 	virtual bool InitApp();
@@ -100,12 +95,20 @@ protected:
 
 
 	// offscreen buffer
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>   mOffscreenRTV         = nullptr;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mOffscreenSRV         = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView>    mOffscreenRTV         = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>  mOffscreenSRV         = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> mOffscreenUAV         = nullptr;
+
+	// for blur
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>  mHorBluredSRV = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> mHorBluredUAV = nullptr;
+
+
 
 	
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>   mRSFrontCull           = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState>   mRSNoCull              = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState>   mRSWireFrame = nullptr;
 																	       
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDSLessEqual           = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDSStencilMark         = nullptr;
@@ -130,8 +133,13 @@ protected:
 public:
 
 
-	ID3D11RasterizerState* GetRSFrontCull() const;
-	ID3D11RasterizerState* GetRSNoCull() const;
+	ID3D11Device*            GetDevice()         const;
+	ID3D11DeviceContext*     GetDeviceContext()  const;
+	ID3D11BlendState*        GetBSTransparent() const;
+	ID3D11DepthStencilState* GetDSLessEqual()   const;
+	ID3D11RasterizerState*   GetRSFrontCull() const;
+	ID3D11RasterizerState*   GetRSNoCull() const;
+	ID3D11RasterizerState*   GetRSWireFrame() const;
 
 private:
 

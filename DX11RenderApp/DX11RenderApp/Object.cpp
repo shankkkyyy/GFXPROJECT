@@ -1,8 +1,6 @@
 #include "Object.h"
 #include "GeometryGenerator.h"
-#include "Scene.h"
-
-
+#include "Engine.h"
 
 
 Object::Object() 
@@ -24,9 +22,8 @@ Object::~Object()
 }
 
 
-void Object::SetPS(Scene* const _app)
+void Object::SetPS(Engine* const _app)
 {
-
 	UINT texCount =(UINT) mTexMaps.size();
 	ID3D11DeviceContext* devContext = _app->GetDeviceContext();
 	switch (texCount)
@@ -148,7 +145,7 @@ void Object::Update(float _deltaTime)
 
 void Object::Draw()
 {
-	Scene* const app = Scene::GetBaseScene();
+	Engine* const app = Engine::GetEngine();
 
 	// Frustum Culling check
 
@@ -206,7 +203,7 @@ void Object::Draw()
 
 void Object::DrawTransparent()
 {
-	Scene* const app = Scene::GetBaseScene();
+	Engine* const app = Engine::GetEngine();
 
 	// Frustum Culling check
 
@@ -308,7 +305,7 @@ void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11
 UINT Object::DrawInstance(const InstanceData* const _instData)
 {
 
-	Scene* const app = Scene::GetBaseScene();
+	Engine* const app = Engine::GetEngine();
 	const Camera* const mainCamera = app->GetMainCamera();
 	XMMATRIX worldView, world;
 	BoundingBox boundingView;
@@ -466,10 +463,7 @@ Objects::Objects()
 	silver_material = new Material();
 	silver_material->diffuseAlbedo = XMFLOAT4(DirectX::Colors::Silver);
 	silver_material->fresnelR0 = { 0.9f, 0.9f, 0.9f};
-	silver_material->shininess = 8;
-
-
-	
+	silver_material->shininess = 8;	
 }
 
 Objects::~Objects()

@@ -63,13 +63,16 @@
     <ClCompile Include="..\Shared\DDSTextureLoader.cpp">
       <Filter>Shared</Filter>
     </ClCompile>
-    <ClCompile Include="Scene.cpp">
-      <Filter>Apps</Filter>
-    </ClCompile>
     <ClCompile Include="Shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SkyBox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine.cpp">
+      <Filter>Apps</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -110,13 +113,16 @@
     <ClInclude Include="..\Shared\ddstextureloader.h">
       <Filter>Shared</Filter>
     </ClInclude>
-    <ClInclude Include="Scene.h">
-      <Filter>Apps</Filter>
-    </ClInclude>
     <ClInclude Include="Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SkyBox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine.h">
+      <Filter>Apps</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -160,6 +166,24 @@
     <FxCompile Include="Shaders\PSRTT_red.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\CSHorBlur.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\CSVertBlur.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VSPassTrough12.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\HSPosPassThrough.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PSTess.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Functions.hlsli">
@@ -169,6 +193,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\Resource.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\CSResource.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\TessResource.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
