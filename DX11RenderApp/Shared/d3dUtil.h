@@ -14,8 +14,13 @@
 #define KEY_R 0x52
 #define KEY_G 0x47
 #define KEY_B 0x42
+#define KEY_1 0x31
+#define KEY_2 0x32
+
 
 #define divBy256 1.0f/256.0f
+#define CubeMapSize 256
+#define MAXTESSFACTOR 64
 
 
 // has d3d11.h

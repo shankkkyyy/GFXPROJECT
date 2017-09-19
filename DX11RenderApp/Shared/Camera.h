@@ -15,6 +15,8 @@ public:
 public:
 
 	void SetPosition(const DirectX::XMFLOAT3& _val);
+	void SetRotation(float _pitch, float _yaw, float _raw);
+
 
 	DirectX::XMFLOAT3 GetPosition() const;
 	DirectX::XMVECTOR GetPositionXM() const;
@@ -27,7 +29,7 @@ public:
 	DirectX::XMMATRIX GetWorld() const;
 	const DirectX::BoundingFrustum* const GetFrustum() const;
 	
-
+	void SetLen(float _fov, float _ratio, float _np, float _fp);
 
 	void Update(float _deltaTime);
 
@@ -39,6 +41,13 @@ public:
 	void OnMouseWheel();
 
 	void OnKeyDown();
+
+
+	float GetFOV() const;
+	float GetAspect()const;
+	float GetNearPlane() const;
+	float GetFarPlane() const;
+
 	
 private:
 
@@ -47,6 +56,8 @@ private:
 	float mNP;
 	
 	float mFP;
+
+	float mAspect;
 
 	DirectX::BoundingFrustum mFrustumView;
 
@@ -88,6 +99,9 @@ public:
 
 	// rotate on world Y
 	void LookRight(float _delta);
+
+	void UpdateViewMatrix(CXMVECTOR forward, CXMVECTOR right, CXMVECTOR up);
+
 
 };
 

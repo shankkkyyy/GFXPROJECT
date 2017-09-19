@@ -45,6 +45,11 @@ ID3D11PixelShader * Shader::GetRTTPSRed() const
 	return mRTT_PSRed.Get();
 }
 
+ID3D11PixelShader * Shader::GetPSCube() const
+{
+	return mobj_PSCube.Get();
+}
+
 ID3D11ComputeShader * Shader::GetBlurHorCS() const
 {
 	return mBlurHor_CS.Get();
@@ -85,22 +90,22 @@ ID3D11PixelShader * Shader::GetBBPS() const
 	return mBB_PS.Get();
 }
 
-ID3D11VertexShader * Shader::GetTessVS() const
+ID3D11VertexShader * Shader::GetTerrianVS() const
 {
-	return mTess_VS.Get();
+	return mTerrian_VS.Get();
 }
 
-ID3D11HullShader * Shader::GetTessHS() const
+ID3D11HullShader * Shader::GetTerrianHS() const
 {
-	return mTess_HS.Get();
+	return mTerrian_HS.Get();
 }
 
-ID3D11DomainShader * Shader::GetTessDS() const
+ID3D11DomainShader * Shader::GetTerrianDS() const
 {
-	return mTess_DS.Get();
+	return mTerrian_DS.Get();
 }
 
-ID3D11PixelShader * Shader::GetTessPS() const
+ID3D11PixelShader * Shader::GetTerrianPS() const
 {
 	return mTess_PS.Get();
 }
@@ -123,6 +128,11 @@ ID3D11InputLayout * Shader::GetBasic32IL() const
 ID3D11InputLayout * Shader::GetPosSize() const
 {
 	return mILposSize.Get();
+}
+
+ID3D11InputLayout * Shader::GetTerrianIL() const
+{
+	return mILTerrian.Get();
 }
 
 
@@ -151,10 +161,7 @@ void Shader::LoadShaders(ID3D11Device * _device)
 	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSRTT.cso", byteCode))
 	{
 		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mRTT_VS.GetAddressOf()));
-
 	}
-
-
 
 	// Load Pixel shader for basic32 Vertex
 	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSt0.cso", byteCode))
@@ -180,6 +187,11 @@ void Shader::LoadShaders(ID3D11Device * _device)
 	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSRTT_red.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mRTT_PSRed.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSCubeMap.cso", byteCode))
+	{
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSCube.GetAddressOf()));
 	}
 
 
@@ -236,19 +248,21 @@ void Shader::LoadShaders(ID3D11Device * _device)
 
 #pragma region Load Shaders for Tess
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSPassTrough12.cso", byteCode))
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSTerrian.cso", byteCode))
 	{
-		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mTess_VS.GetAddressOf()));
+		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mTerrian_VS.GetAddressOf()));
+		HR(_device->CreateInputLayout(
+			InputLayoutDesc::IDTerrian, _countof(InputLayoutDesc::IDTerrian), byteCode.data(), byteCode.size(), mILTerrian.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/HSPosPassThrough.cso", byteCode))
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/HSTerrian.cso", byteCode))
 	{
-		HR(_device->CreateHullShader(byteCode.data(), byteCode.size(), nullptr, mTess_HS.GetAddressOf()));
+		HR(_device->CreateHullShader(byteCode.data(), byteCode.size(), nullptr, mTerrian_HS.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/DS.cso", byteCode))
+	if (d3dHelper::LoadShaderByteCode(L"Shaders/DSTerrian.cso", byteCode))
 	{
-		HR(_device->CreateDomainShader(byteCode.data(), byteCode.size(), nullptr, mTess_DS.GetAddressOf()));
+		HR(_device->CreateDomainShader(byteCode.data(), byteCode.size(), nullptr, mTerrian_DS.GetAddressOf()));
 	}
 
 	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSTess.cso", byteCode))

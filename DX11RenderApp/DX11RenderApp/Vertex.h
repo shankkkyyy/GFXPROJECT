@@ -32,6 +32,13 @@ struct VertexBB
 };
 
 
+struct VertexTerrian
+{
+	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT2 uv;
+};
+
+
 class InputLayoutDesc
 {
 public:
@@ -40,6 +47,7 @@ public:
 	static const D3D11_INPUT_ELEMENT_DESC IDPosNor[2];
 	static const D3D11_INPUT_ELEMENT_DESC IDBasic32[3];
 	static const D3D11_INPUT_ELEMENT_DESC IDBasic32Inst[7];
+	static const D3D11_INPUT_ELEMENT_DESC IDTerrian[2];
 };
 
 

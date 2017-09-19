@@ -1,6 +1,7 @@
 #include "BaseScene.h"
 #include "SkyBox.h"
 #include "Engine.h"
+#include "terrian.h"
 
 #pragma region BaseScene
 
@@ -13,6 +14,7 @@ ID3D11DeviceContext* BaseScene::md3dImmediateContext = nullptr;
 
 BaseScene::BaseScene()
 {
+	mCurrentCam = mEngine->GetMainCamera();
 }
 
 BaseScene::~BaseScene()
@@ -30,18 +32,86 @@ void BaseScene::LinkResource(class Engine* _engine)
 
 void BaseScene::InitScene()
 {
-	EditScene();
 	CreateConstantBuffer();
 	CreateGeometryBuffer();
 	InitialRenderSettings();
 }
 
+void BaseScene::Render()
+{
+	RenderOffScreen();
+	RenderToScreen();
+}
+
 void BaseScene::CleanScene()
 {
+	// reset Shaders
+	md3dImmediateContext->VSSetShader(nullptr, 0, 0);
+	md3dImmediateContext->HSSetShader(nullptr, 0, 0);
+	md3dImmediateContext->DSSetShader(nullptr, 0, 0);
+	md3dImmediateContext->GSSetShader(nullptr, 0, 0);
+	md3dImmediateContext->PSSetShader(nullptr, 0, 0);
+	// Release Constant Buffer
+
+	mCBPerObj_VS.Reset();
+	mCBPerObj_PS.Reset();
+	mCBPerFrame_VS.Reset();
+	mCBPerFrame_HS.Reset();
+	mCBPerFrame_DS.Reset();
+	mCBPerFrame_GS.Reset();
+	mCBPerFrame_PS.Reset();
+
+	// Release Geometry Buffer
+	mVertexBuffer.Reset();
+	mIndexBuffer.Reset();
+	mInstanceBuffer.Reset();
 }
 
 void BaseScene::InitialRenderSettings()
 {
+	// Set Camera position
+	mCurrentCam->SetPosition(XMFLOAT3(0, 5, -30.0f));
+	mCurrentCam->SetRotation(0, 0, 0);
+
+}
+
+ID3D11Buffer * BaseScene::GetPSCBPerObj() const
+{
+	return mCBPerObj_PS.Get();
+}
+
+ID3D11Buffer * BaseScene::GetVSCBPerObj() const
+{
+	return mCBPerObj_VS.Get();
+}
+
+ID3D11Buffer * BaseScene::GetInstanceBuffer() const
+{
+	return mInstanceBuffer.Get();
+}
+
+Camera * BaseScene::GetCurrentCamera() const
+{
+	return mCurrentCam;
+}
+
+
+void BaseScene::RenderOffScreen()
+{
+	ID3D11RenderTargetView* offscreenRTV = mEngine->GetOffScreenRTV();
+	ID3D11DepthStencilView* dsv = mEngine->GetDepthStencilView();
+	md3dImmediateContext->OMSetRenderTargets(1, &offscreenRTV, dsv);
+	md3dImmediateContext->ClearRenderTargetView(offscreenRTV, DirectX::Colors::Yellow);
+	md3dImmediateContext->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+}
+
+void BaseScene::RenderToScreen()
+{
+	ID3D11RenderTargetView* screenRTV = mEngine->GetRenderTarget();
+	ID3D11DepthStencilView* dsv = mEngine->GetDepthStencilView();
+	md3dImmediateContext->OMSetRenderTargets(1, &screenRTV, dsv);
+	md3dImmediateContext->ClearRenderTargetView(screenRTV, DirectX::Colors::DarkGreen);
+	md3dImmediateContext->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
 
 void BaseScene::GetIndexAndVertexSize(UINT & totalVerticeSize, UINT & totalIndicesSize, std::vector<Object*>* _objList)
@@ -83,68 +153,33 @@ void BaseScene::GetIndexAndVertexStartIndex(size_t & iOffset, size_t & vOffset, 
 
 
 #pragma region CountrySide
-CountrySide::CountrySide()
+
+CountrySide::CountrySide() : BaseScene::BaseScene()
 {
 }
 
 CountrySide::~CountrySide()
 {
+	delete mTerrian;
 }
 
 void CountrySide::EditScene()
 {
+	
+	mTerrian = new Terrian();
+	Terrian::TerrianInfo tInfo;
+	tInfo.cellSpacing = 0.5f;
+	tInfo.heightMapDepth = 2049;
+	tInfo.heightMapWidth = 2049;
+	tInfo.heightScale = 20.0f;
+	tInfo.heightMapFileName = L"fgb";
+	mTerrian->Initialize(tInfo);
 
 }
 
 void CountrySide::CreateGeometryBuffer()
 {
-	// Create Quad Vertex 
-	Vertex12* quadVertices = new Vertex12[4];
-	quadVertices[0].pos = XMFLOAT3(-10.0f, 0.0f, +10.0f);
-	quadVertices[1].pos = XMFLOAT3(+10.0f, 0.0f, +10.0f);
-	quadVertices[2].pos = XMFLOAT3(10.0f, 0.0f, -10.0f);
-	quadVertices[3].pos = XMFLOAT3(-10.0f, 0.0f, -10.0f);
-
-	UINT* quadIndices = new UINT[6];
-	quadIndices[0] = 0;
-	quadIndices[1] = 1;
-	quadIndices[2] = 2;
-
-	quadIndices[3] = 0;
-	quadIndices[4] = 2;
-	quadIndices[5] = 3;
-
-	// Create Vertex and Indices buffer
-
-	D3D11_SUBRESOURCE_DATA initData;
-	D3D11_BUFFER_DESC vbd;
-	ZeroMemory(&vbd, sizeof(vbd));
-	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.ByteWidth = 4 * sizeof(Vertex12);
-	vbd.CPUAccessFlags = 0;
-	vbd.MiscFlags = 0;
-	vbd.StructureByteStride = 0;
-	vbd.Usage = D3D11_USAGE_IMMUTABLE;
-
-	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
-	initData.pSysMem = quadVertices;
-	HR(md3dDevice->CreateBuffer(&vbd, &initData, mVertexBuffer.GetAddressOf()));
-
-	D3D11_BUFFER_DESC ibd;
-	ZeroMemory(&ibd, sizeof(ibd));
-	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	ibd.ByteWidth = 6 * sizeof(UINT);
-	ibd.CPUAccessFlags = 0;
-	ibd.MiscFlags = 0;
-	ibd.StructureByteStride = 0;
-	ibd.Usage = D3D11_USAGE_IMMUTABLE;
-
-	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
-	initData.pSysMem = quadIndices;
-	HR(md3dDevice->CreateBuffer(&ibd, &initData, mIndexBuffer.GetAddressOf()));
-
-	delete[] quadVertices;
-	delete[] quadIndices;
+	mTerrian->CreateGeometryBuffer();
 }
 
 void CountrySide::CreateConstantBuffer()
@@ -156,10 +191,23 @@ void CountrySide::CreateConstantBuffer()
 	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	cbd.ByteWidth = sizeof(mHSCBPerFrame);
-	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBHSPerFrame.GetAddressOf()));
+	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerFrame_HS.GetAddressOf()));
 
 	cbd.ByteWidth = sizeof(mDSCBPerFrame);
-	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBDSPerFrame.GetAddressOf()));
+	HR(md3dDevice->CreateBuffer(&cbd, nullptr, mCBPerFrame_DS.GetAddressOf()));
+}
+
+void CountrySide::InitialRenderSettings()
+{
+
+	md3dImmediateContext->RSSetState(mEngine->GetRSWireFrame());
+
+	md3dImmediateContext->VSSetShader(mShaders->GetTerrianVS(), 0, 0);
+	md3dImmediateContext->HSSetShader(mShaders->GetTerrianHS(), 0, 0);
+	md3dImmediateContext->DSSetShader(mShaders->GetTerrianDS(), 0, 0);
+	md3dImmediateContext->PSSetShader(mShaders->GetTerrianPS(), 0, 0);
+
+	BaseScene::InitialRenderSettings();
 
 }
 
@@ -167,9 +215,13 @@ void CountrySide::Update(float _deltaTime)
 {
 }
 
-void CountrySide::Render()
+void CountrySide::RenderOffScreen()
 {
+}
 
+void CountrySide::RenderToScreen()
+{
+	BaseScene::RenderToScreen();
 	// update Buffer
 	const Camera* const mMainCamera = mEngine->GetMainCamera();
 
@@ -179,165 +231,68 @@ void CountrySide::Render()
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 
 	ZeroMemory(&mapResource, sizeof(mapResource));
-	HR(md3dImmediateContext->Map(mCBHSPerFrame.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_HS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 	memcpy(mapResource.pData, &mHSCBPerFrame, sizeof(mHSCBPerFrame));
-	md3dImmediateContext->Unmap(mCBHSPerFrame.Get(), 0);
+	md3dImmediateContext->Unmap(mCBPerFrame_HS.Get(), 0);
 
-	md3dImmediateContext->HSSetConstantBuffers(0, 1, mCBHSPerFrame.GetAddressOf());
+	md3dImmediateContext->HSSetConstantBuffers(0, 1, mCBPerFrame_HS.GetAddressOf());
 
 	ZeroMemory(&mapResource, sizeof(mapResource));
-	HR(md3dImmediateContext->Map(mCBDSPerFrame.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_DS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 	memcpy(mapResource.pData, &mDSCBPerFrame, sizeof(mDSCBPerFrame));
-	md3dImmediateContext->Unmap(mCBDSPerFrame.Get(), 0);
+	md3dImmediateContext->Unmap(mCBPerFrame_DS.Get(), 0);
 
-	md3dImmediateContext->DSSetConstantBuffers(0, 1, mCBDSPerFrame.GetAddressOf());
+	md3dImmediateContext->DSSetConstantBuffers(0, 1, mCBPerFrame_DS.GetAddressOf());
 
-
-	md3dImmediateContext->DrawIndexed(6, 0, 0);
-	//md3dImmediateContext->Draw(3, 0);
+	mTerrian->Draw();
 }
 
 void CountrySide::CleanScene()
 {
-	//md3dImmediateContext->HSSetShader(Shaders->GetTessHS(), 0, 0);
-	//md3dImmediateContext->DSSetShader(Shaders->GetTessDS(), 0, 0);
-}
-
-void CountrySide::InitialRenderSettings()
-{
-	md3dImmediateContext->RSSetState(mEngine->GetRSWireFrame());
-	md3dImmediateContext->IASetInputLayout(mEngine->GetShaders()->GetPosIL());
-	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-
-	UINT stride = sizeof(Vertex12);
-	UINT offset = 0;
-	md3dImmediateContext->IASetVertexBuffers(0, 1, mVertexBuffer.GetAddressOf(), &stride, &offset);
-	md3dImmediateContext->IASetIndexBuffer(mIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-	const Shader* const Shaders = mEngine->GetShaders();
-	md3dImmediateContext->VSSetShader(Shaders->GetTessVS(), 0, 0);
-	md3dImmediateContext->HSSetShader(Shaders->GetTessHS(), 0, 0);
-	md3dImmediateContext->DSSetShader(Shaders->GetTessDS(), 0, 0);
-	md3dImmediateContext->PSSetShader(Shaders->GetTessPS(), 0, 0);
+	BaseScene::CleanScene();
+	mTerrian->ReleaseResource();
 }
 
 #pragma endregion
 
-CarDemo::CarDemo()
+
+#pragma region CarDemo
+CarDemo::CarDemo() : BaseScene::BaseScene()
 {
 }
 
 CarDemo::~CarDemo()
 {
 	delete mSkyBox;
+	delete[] mTrees;
 
 	size_t i = 0;
-	for (; i < mOpagueObjs->size(); i++)
+	// delete reflection objs data
+	for (; i < mReflectionObjs->size(); i++)
+	{
+		delete (*mReflectionObjs)[i];
+	}
+	delete mReflectionObjs;
+
+	// delete opague objs data
+	for (i = 0; i < mOpagueObjs->size(); i++)
 	{
 		delete (*mOpagueObjs)[i];
 	}
 	delete mOpagueObjs;
-
+	// delete transparent obj data
 	for (i = 0; i < mTransparentObjs->size(); i++)
 	{
 		delete (*mTransparentObjs)[i];
 	}
 	delete mTransparentObjs;
-
+	// delete instance data
 	for (i = 0; i < mInstances->size(); i++)
 	{
 		delete (*mInstances)[i];
 	}
 	delete mInstances;
-
 	delete mInstanceData;
-}
-
-void CarDemo::Update(float _deltaTime)
-{
-	CXMVECTOR zAxis = XMVectorSet(0, 0, 1, 0);
-	CXMVECTOR yAxis = XMVectorSet(0, 1, 0, 0);
-
-	//rotate direction light on Z;
-	CXMMATRIX rotationZ = XMMatrixRotationNormal(zAxis, 0.5f * _deltaTime);
-
-	XMStoreFloat3(&mToVRAMPerFrame_PS.light[0].direction,
-		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction), rotationZ));
-
-	//move pointlight 
-	CXMMATRIX rotationY = XMMatrixRotationNormal(yAxis, 0.5f * _deltaTime);
-
-	XMStoreFloat3(&mToVRAMPerFrame_PS.light[1].position,
-		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[1].position), rotationY));
-
-	// move spot light
-
-	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].position,
-		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[2].position), rotationY));
-	XMMATRIX rotationNegY = XMMatrixTranspose(rotationY);
-	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].direction,
-		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[2].direction), rotationY));
-}
-
-void CarDemo::Render()
-{
-	// update frame cbuffer for PS and VS
-	const Camera* const mainCamera = mEngine->GetMainCamera();
-	XMFLOAT3 camPos = mainCamera->GetPosition();
-	D3D11_MAPPED_SUBRESOURCE mSource;
-
-#pragma region   Upload PerFrame cBuffer VS
-	// Update
-
-	XMStoreFloat4x4(&mToVRAMPerFrame_VS.camPosTransform, XMMatrixTranspose(XMMatrixTranslation(camPos.x, camPos.y, camPos.z) * mainCamera->GetViewProjXM()));
-	XMStoreFloat4x4(&mToVRAMPerFrame_VS.viewProj, XMMatrixTranspose(mainCamera->GetViewProjXM()));
-	// mapping
-	ZeroMemory(&mSource, sizeof(mSource));
-	HR(md3dImmediateContext->Map(mCBPerFrame_VS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
-	memcpy(mSource.pData, &mToVRAMPerFrame_VS, sizeof(mToVRAMPerFrame_VS));
-	md3dImmediateContext->Unmap(mCBPerFrame_VS.Get(), 0);
-
-	// Apply
-	md3dImmediateContext->VSSetConstantBuffers(0, 1, mCBPerFrame_VS.GetAddressOf());
-
-#pragma endregion
-
-#pragma region  Upload PerFrame cBuffer GS
-
-	mToVRAMPerFrame_GS.eyePosition = { camPos.x, camPos.y, camPos.z, 1.0f };
-	XMStoreFloat4x4(&mToVRAMPerFrame_GS.viewProj, XMMatrixTranspose(mainCamera->GetViewProjXM()));
-
-	ZeroMemory(&mSource, sizeof(mSource));
-	HR(md3dImmediateContext->Map(mCBPerFrame_GS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
-	memcpy(mSource.pData, &mToVRAMPerFrame_GS, sizeof(mToVRAMPerFrame_GS));
-	md3dImmediateContext->Unmap(mCBPerFrame_GS.Get(), 0);
-
-	// Apply
-	md3dImmediateContext->GSSetConstantBuffers(0, 1, mCBPerFrame_GS.GetAddressOf());
-
-#pragma endregion
-
-#pragma region Upload PerFrame cBuffer PS
-
-	mToVRAMPerFrame_PS.eyePosition = camPos;
-
-	ZeroMemory(&mSource, sizeof(mSource));
-	HR(md3dImmediateContext->Map(mCBPerFrame_PS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
-	memcpy(mSource.pData, &mToVRAMPerFrame_PS, sizeof(mToVRAMPerFrame_PS));
-	md3dImmediateContext->Unmap(mCBPerFrame_PS.Get(), 0);
-
-	// Apply
-	md3dImmediateContext->PSSetConstantBuffers(0, 1, mCBPerFrame_PS.GetAddressOf());
-
-#pragma endregion
-
-	DrawOpaques();
-	DrawSkyBox();
-	DrawTransparents();
-}
-
-void CarDemo::CleanScene()
-{
 }
 
 void CarDemo::EditScene()
@@ -348,6 +303,7 @@ void CarDemo::EditScene()
 	std::vector<ID3D11ShaderResourceView*> textures;
 
 	mOpagueObjs = new std::vector<Object*>();
+	mReflectionObjs = new std::vector<Object*>();
 	mTransparentObjs = new std::vector<Object*>();
 	mInstances = new std::vector<Object*>();
 
@@ -357,7 +313,7 @@ void CarDemo::EditScene()
 	textures.clear();
 	textures.resize(1);
 	textures[0] = Objects::GetFloorTexture();
-	surface->Edit(Objects::GetDefaultPlaneMesh(), nullptr, textures.data(), (UINT)textures.size());
+	surface->Edit(Objects::GetDefaultPlaneMesh(), nullptr, textures.data(), (UINT)textures.size(), SingleDiffuse);
 	surface->SetPosition(XMFLOAT3(0, -0.01f, 10));
 	surface->SetScale(XMFLOAT3(200, 0.25f, 200));
 	surface->SetTexTransform(5, 5);
@@ -366,7 +322,10 @@ void CarDemo::EditScene()
 	// sphere
 	Object* sphere = new Object();
 	sphere->SetName("sphere");
-	sphere->Edit(Objects::GetSphereMesh(), Objects::GetSilverMaterial(), nullptr, 0);
+	textures.clear();
+	textures.resize(1);
+	textures[0] = Objects::GetSkyTexuture();
+	sphere->Edit(Objects::GetSphereMesh(), Objects::GetSilverMaterial(), textures.data(), UINT(textures.size()), StaticCube);
 	sphere->SetPosition(XMFLOAT3(-100, 10, -30));
 	sphere->SetScale(XMFLOAT3(0.5f, 0.5f, 0.5f));
 	sphere->SetInstanceCount(400);
@@ -378,7 +337,7 @@ void CarDemo::EditScene()
 	textures.clear();
 	textures.resize(1);
 	textures[0] = Objects::GetCarTexture();
-	car->Edit(Objects::GetCarMesh(), nullptr, textures.data(), (UINT)textures.size());
+	car->Edit(Objects::GetCarMesh(), nullptr, textures.data(), (UINT)textures.size(), SingleDiffuse);
 	car->SetPosition(XMFLOAT3(0, 0, 5));
 	car->Rotate(0, 90, 0);
 	mOpagueObjs->push_back(car);
@@ -408,7 +367,7 @@ void CarDemo::EditScene()
 	textures.clear();
 	textures.resize(1);
 	textures[0] = Objects::GetIceTexture();
-	mirror->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size());
+	mirror->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size(), SingleDiffuse);
 	mirror->SetPosition(XMFLOAT3(-30, 7.5f, 0));
 	mirror->SetScale(XMFLOAT3(1, 15, 25));
 	mirror->SetTexTransform(3, 5);
@@ -417,13 +376,13 @@ void CarDemo::EditScene()
 	mTransparentObjs->push_back(mirror);
 
 
-	// IceWall
+	// Wall
 	Object* wall = new Object();
 	wall->SetName("Wall");
 	textures.clear();
 	textures.resize(1);
 	textures[0] = Objects::GetWallTexture();
-	wall->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size());
+	wall->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size(), SingleDiffuse);
 	wall->SetPosition(XMFLOAT3(-40, 7.5f, 0));
 	wall->SetScale(XMFLOAT3(1, 15, 25));
 	wall->SetTexTransform(3, 5);
@@ -437,11 +396,26 @@ void CarDemo::EditScene()
 	textures.resize(2);
 	textures[0] = Objects::GetWallTexture();
 	textures[1] = Objects::GetIceTexture();
-	IceWall->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size());
+	IceWall->Edit(Objects::GetDefaultCubeMesh(), nullptr, textures.data(), (UINT)textures.size(), DoubleDiffuse);
 	IceWall->SetPosition(XMFLOAT3(-50, 7.5f, 0));
 	IceWall->SetScale(XMFLOAT3(1, 15, 25));
 	IceWall->SetTexTransform(3, 5);
 	mOpagueObjs->push_back(IceWall);
+
+	// reflection sphere
+	Object* reflectiveSphere = new Object();
+	reflectiveSphere->SetName("reflectiveSphere");
+	reflectiveSphere->Edit(Objects::GetSphereMesh(), Objects::GetSilverMaterial(), nullptr, 0);
+	reflectiveSphere->SetPosition(XMFLOAT3(0, 15, 40));
+	reflectiveSphere->SetScale(XMFLOAT3(1.5f, 1.5f, 1.5f));
+
+	mReflectionObjs->push_back(reflectiveSphere);
+
+
+	// setup the dynamic cube map Camera
+	XMFLOAT4 rSpherePosition = reflectiveSphere->GetPosition();
+	mEngine->SetDynamicCubeMapCamera(XMFLOAT3(rSpherePosition.x, rSpherePosition.y, rSpherePosition.z));
+
 
 
 	// build instance data
@@ -488,6 +462,7 @@ void CarDemo::EditScene()
 #pragma endregion
 
 	// sky Box
+	mSkyBox = new SkyBox();
 	mSkyBox->
 		Edit(mShaders->GetSkyVS(), mShaders->GetSkyPS(), Objects::GetSkyTexuture(), mShaders->GetPosIL(), md3dDevice);
 
@@ -544,6 +519,7 @@ void CarDemo::CreateGeometryBuffer()
 #pragma region Gather all vertices and indices for scene objectes into to two separate array
 
 	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mOpagueObjs);
+	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mReflectionObjs);
 	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mInstances);
 	GetIndexAndVertexSize(objVerticeSize, objIndicesSize, mTransparentObjs);
 
@@ -554,6 +530,7 @@ void CarDemo::CreateGeometryBuffer()
 	Vertex* objVertices = new Vertex[objVerticeSize];
 
 	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mOpagueObjs);
+	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mReflectionObjs);
 	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mInstances);
 	GetIndexAndVertexStartIndex(iOffset, vOffset, objIndices, objVertices, mTransparentObjs);
 
@@ -599,7 +576,7 @@ void CarDemo::CreateGeometryBuffer()
 
 	ZeroMemory(&initData, sizeof(D3D11_SUBRESOURCE_DATA));
 	initData.pSysMem = mInstanceData->data();
-	HR(md3dDevice->CreateBuffer(&instbd, &initData, mInstB.GetAddressOf()));
+	HR(md3dDevice->CreateBuffer(&instbd, &initData, mInstanceBuffer.GetAddressOf()));
 #pragma endregion
 
 #pragma region Create Buffer and push data into VB and IB for geometry shader generated obj
@@ -622,8 +599,6 @@ void CarDemo::CreateGeometryBuffer()
 
 	delete[] objVertices;
 	delete[] objIndices;
-	delete[] mTrees;
-
 }
 
 void CarDemo::CreateConstantBuffer()
@@ -652,11 +627,110 @@ void CarDemo::CreateConstantBuffer()
 
 }
 
-void CarDemo::DrawOpaques()
+void CarDemo::InitialRenderSettings()
+{
+	BaseScene::InitialRenderSettings();
+}
+
+void CarDemo::Update(float _deltaTime)
+{
+	CXMVECTOR zAxis = XMVectorSet(0, 0, 1, 0);
+	CXMVECTOR yAxis = XMVectorSet(0, 1, 0, 0);
+
+	//rotate direction light on Z;
+	CXMMATRIX rotationZ = XMMatrixRotationNormal(zAxis, 0.5f * _deltaTime);
+
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[0].direction,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[0].direction), rotationZ));
+
+	//move pointlight 
+	CXMMATRIX rotationY = XMMatrixRotationNormal(yAxis, 0.5f * _deltaTime);
+
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[1].position,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[1].position), rotationY));
+
+	// move spot light
+
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].position,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[2].position), rotationY));
+	XMMATRIX rotationNegY = XMMatrixTranspose(rotationY);
+	XMStoreFloat3(&mToVRAMPerFrame_PS.light[2].direction,
+		XMVector4Transform(XMLoadFloat3(&mToVRAMPerFrame_PS.light[2].direction), rotationY));
+}
+
+void CarDemo::RenderOffScreen()
+{
+	// Draw Cube Map
+	md3dImmediateContext->RSSetViewports(1, mEngine->GetCubeMapViewPort());
+	ID3D11DepthStencilView* cubeMapDsv = mEngine->GetDynamicCubeMapDSV();
+	ID3D11RenderTargetView* currentRTV = nullptr;
+	for (size_t i = 0; i < 6; i++)
+	{
+		mCurrentCam = mEngine->GetDynamicCubeMapCamera()[i];
+		MapConstantBuffer();
+		currentRTV = mEngine->GetDynamicCubeMapRTV((UINT)i);
+		md3dImmediateContext->ClearDepthStencilView(cubeMapDsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		md3dImmediateContext->ClearRenderTargetView(currentRTV, DirectX::Colors::Aqua);
+		md3dImmediateContext->OMSetRenderTargets(1, &currentRTV, cubeMapDsv);
+
+		DrawOpaques(false);
+		DrawSkyBox();
+		DrawTransparents();
+	}
+
+	// Generate Mip Map for cube map
+	md3dImmediateContext->GenerateMips(mEngine->GetDynamicCubeMapSRV());
+
+	// Draw Scene
+	BaseScene::RenderOffScreen();
+	md3dImmediateContext->RSSetViewports(1, mEngine->GetScreenViewPort());
+
+	mCurrentCam = mEngine->GetMainCamera();
+	MapConstantBuffer();
+
+	DrawOpaques(true);
+	DrawSkyBox();
+	DrawTransparents();
+}
+
+void CarDemo::RenderToScreen()
+{
+	BaseScene::RenderToScreen();
+
+	ID3D11Buffer* screenQuad = mEngine->GetScreenVertexBuffer();
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+	md3dImmediateContext->IASetVertexBuffers(0, 1, &screenQuad, &stride, &offset);
+	md3dImmediateContext->PSSetShader(mShaders->GetRTTPSRed(), nullptr, 0);
+	md3dImmediateContext->VSSetShader(mShaders->GetRTTVS(), nullptr, 0);
+
+	// For house keeping
+	ID3D11ShaderResourceView* nullSRV = nullptr;	
+	ID3D11ShaderResourceView* offsreenSRV = mEngine->GetOffScreenSRV();
+
+	if (mEngine->GetIsBlurOn())
+	{
+		mEngine->AddBlur();
+	}
+
+
+	md3dImmediateContext->PSSetShaderResources(9, 1, &offsreenSRV);
+	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	// draw
+	md3dImmediateContext->Draw(4, 0);
+	md3dImmediateContext->PSSetShaderResources(9, 1, &nullSRV);	
+}
+
+void CarDemo::CleanScene()
+{
+	BaseScene::CleanScene();
+	mGeoVB.Reset();
+}
+
+void CarDemo::DrawOpaques(bool _drawReflection)
 {
 	md3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	const Camera* const mainCamera = mEngine->GetMainCamera();
 
 #pragma region Draws
 
@@ -676,6 +750,18 @@ void CarDemo::DrawOpaques()
 		(*mOpagueObjs)[iOpa]->Draw();
 	}
 
+	if (_drawReflection)
+	{
+
+		ID3D11ShaderResourceView* textures[1] = { mEngine->GetDynamicCubeMapSRV() };
+		for (size_t iReflect = 0; iReflect < mReflectionObjs->size(); iReflect++)
+		{
+
+			(*mReflectionObjs)[iReflect]->SetTexture(textures, 1, DynamicCube);
+			(*mReflectionObjs)[iReflect]->Draw();
+		}
+	}
+
 #pragma endregion
 
 #pragma region Draw Instances
@@ -683,7 +769,7 @@ void CarDemo::DrawOpaques()
 	UINT strides[2] = { sizeof(Vertex), sizeof(InstanceData) };
 	UINT offsets[2] = { 0, 0 };
 
-	ID3D11Buffer* vbs[2] = { mVertexBuffer.Get(), mInstB.Get() };
+	ID3D11Buffer* vbs[2] = { mVertexBuffer.Get(), mInstanceBuffer.Get() };
 
 	md3dImmediateContext->IASetVertexBuffers(0, 2, vbs, strides, offsets);
 	md3dImmediateContext->IASetIndexBuffer(mIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
@@ -755,7 +841,7 @@ void CarDemo::DrawSkyBox()
 
 void CarDemo::DrawTransparents()
 {
-	const Camera* const mainCamera = mEngine -> GetMainCamera();
+	const Camera* const currCamera = mEngine ->GetCurrentScene()-> GetCurrentCamera();
 
 	UINT stride, offset;
 	stride = sizeof(Vertex);
@@ -780,7 +866,7 @@ void CarDemo::DrawTransparents()
 	// update the depth
 	for (; iTrans < size; iTrans++)
 	{
-		(*mTransparentObjs)[iTrans]->UpdateDepth(mainCamera);
+		(*mTransparentObjs)[iTrans]->UpdateDepth(currCamera);
 	}
 
 	// sort the depth from close to far
@@ -797,3 +883,58 @@ void CarDemo::DrawTransparents()
 	md3dImmediateContext->OMSetBlendState(nullptr, bf, 0xffffffff);
 
 }
+
+void CarDemo::MapConstantBuffer()
+{
+
+	const Camera* const currCam = this->GetCurrentCamera();
+	XMFLOAT3 camPos = currCam->GetPosition();
+	D3D11_MAPPED_SUBRESOURCE mSource;
+
+#pragma region   Upload PerFrame cBuffer VS
+	// Update
+
+	XMStoreFloat4x4(&mToVRAMPerFrame_VS.camPosTransform, XMMatrixTranspose(XMMatrixTranslation(camPos.x, camPos.y, camPos.z) * currCam->GetViewProjXM()));
+	XMStoreFloat4x4(&mToVRAMPerFrame_VS.viewProj, XMMatrixTranspose(currCam->GetViewProjXM()));
+	// mapping
+	ZeroMemory(&mSource, sizeof(mSource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_VS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
+	memcpy(mSource.pData, &mToVRAMPerFrame_VS, sizeof(mToVRAMPerFrame_VS));
+	md3dImmediateContext->Unmap(mCBPerFrame_VS.Get(), 0);
+
+	// Apply
+	md3dImmediateContext->VSSetConstantBuffers(0, 1, mCBPerFrame_VS.GetAddressOf());
+
+#pragma endregion
+
+#pragma region  Upload PerFrame cBuffer GS
+
+	mToVRAMPerFrame_GS.eyePosition = { camPos.x, camPos.y, camPos.z, 1.0f };
+	XMStoreFloat4x4(&mToVRAMPerFrame_GS.viewProj, XMMatrixTranspose(currCam->GetViewProjXM()));
+
+	ZeroMemory(&mSource, sizeof(mSource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_GS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
+	memcpy(mSource.pData, &mToVRAMPerFrame_GS, sizeof(mToVRAMPerFrame_GS));
+	md3dImmediateContext->Unmap(mCBPerFrame_GS.Get(), 0);
+
+	// Apply
+	md3dImmediateContext->GSSetConstantBuffers(0, 1, mCBPerFrame_GS.GetAddressOf());
+
+#pragma endregion
+
+#pragma region Upload PerFrame cBuffer PS
+
+	mToVRAMPerFrame_PS.eyePosition = camPos;
+
+	ZeroMemory(&mSource, sizeof(mSource));
+	HR(md3dImmediateContext->Map(mCBPerFrame_PS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mSource));
+	memcpy(mSource.pData, &mToVRAMPerFrame_PS, sizeof(mToVRAMPerFrame_PS));
+	md3dImmediateContext->Unmap(mCBPerFrame_PS.Get(), 0);
+
+	// Apply
+	md3dImmediateContext->PSSetConstantBuffers(0, 1, mCBPerFrame_PS.GetAddressOf());
+
+#pragma endregion
+}
+
+#pragma endregion

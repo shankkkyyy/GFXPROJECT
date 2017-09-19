@@ -121,7 +121,12 @@ protected:
 
 	std::vector < Microsoft::WRL::ComPtr<ID3D11SamplerState>> mSSs;
 
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> mDynamicCubeMapDSV  = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> mDynamicCubeMapRTV[6];
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mDynamicCubeMapSRV  = nullptr;
+
 	D3D11_VIEWPORT          mScreenViewPort;
+	D3D11_VIEWPORT          mCubeMapViewPort;
 
 	
 	std::wstring mMainWndCaption;
@@ -138,8 +143,27 @@ public:
 	ID3D11BlendState*        GetBSTransparent() const;
 	ID3D11DepthStencilState* GetDSLessEqual()   const;
 	ID3D11RasterizerState*   GetRSFrontCull() const;
-	ID3D11RasterizerState*   GetRSNoCull() const;
+	ID3D11RasterizerState*   GetRSNoCull()    const;
 	ID3D11RasterizerState*   GetRSWireFrame() const;
+
+	ID3D11RenderTargetView*  GetRenderTarget()     const;
+	ID3D11RenderTargetView*  GetOffScreenRTV() const;
+	ID3D11DepthStencilView*  GetDepthStencilView() const;
+
+	ID3D11UnorderedAccessView* GetOffScreenUAV() const;
+	ID3D11ShaderResourceView*  GetOffScreenSRV() const;
+	ID3D11UnorderedAccessView* GetHorBluredUAV() const;
+	ID3D11ShaderResourceView* GetHorBluredSRV() const;
+
+	const D3D11_VIEWPORT*     GetScreenViewPort() const;
+	const D3D11_VIEWPORT*     GetCubeMapViewPort() const;
+
+	ID3D11DepthStencilView*   GetDynamicCubeMapDSV() const;
+	ID3D11ShaderResourceView* GetDynamicCubeMapSRV()const;
+	ID3D11RenderTargetView*   GetDynamicCubeMapRTV(UINT _index)const;
+
+	int GetScreenHeight()   const;
+	int GetScreenWidth()    const;
 
 private:
 

@@ -5,6 +5,7 @@
 
 Camera::Camera() : 
 	mFieldOfView(MathHelper::Pi * 0.25f),
+	mAspect(1.0f),
 	mNP(.3f),
 	mFP(800.0f)
 {
@@ -16,8 +17,6 @@ Camera::Camera() :
 	mUp      = { r(1, 0) , r(1, 1), r(1, 2) };
 	mForward = { r(2, 0) , r(2, 1), r(2, 2) };
 	mPosition = { 0, 0, 0 };
-
-	Zoom(-5.0f);	
 }
 
 Camera::~Camera()
@@ -27,6 +26,16 @@ Camera::~Camera()
 void Camera::SetPosition(const XMFLOAT3& _val)
 {
 	mPosition = _val;
+}
+
+void Camera::SetRotation(float _pitch, float _yaw, float _raw)
+{
+	XMFLOAT4X4 r;
+	XMStoreFloat4x4(&r, XMMatrixRotationRollPitchYaw( _pitch,  _yaw,  _raw)); //1.5f*MathHelper::Pi
+
+	mRight = { r(0, 0) , r(0, 1), r(0, 2) };
+	mUp = { r(1, 0) , r(1, 1), r(1, 2) };
+	mForward = { r(2, 0) , r(2, 1), r(2, 2) };
 }
 
 DirectX::XMFLOAT3 Camera::GetPosition() const
@@ -74,6 +83,14 @@ const DirectX::BoundingFrustum * const Camera::GetFrustum() const
 	return &mFrustumView;
 }
 
+void Camera::SetLen(float _fov, float _ratio, float _np, float _fp)
+{
+	mFieldOfView = _fov;
+	mAspect = _ratio;
+	mNP = _np;
+	mFP = _fp;
+}
+
 
 
 void Camera::Update(float _deltaTime)
@@ -108,11 +125,6 @@ void Camera::Update(float _deltaTime)
 		MoveY(-10.0f * _deltaTime);
 	}
 
-
-
-
-
-
 #pragma endregion
 
 #pragma region Orthogonal Correction
@@ -129,34 +141,7 @@ void Camera::Update(float _deltaTime)
 
 #pragma region Update View Matrix
 
-	XMVECTOR position = XMLoadFloat3(&mPosition);
-
-	mView(3, 0) = -XMVectorGetX(XMVector3Dot(position, right));
-	mView(3, 1) = -XMVectorGetX(XMVector3Dot(position, up));
-	mView(3, 2) = -XMVectorGetX(XMVector3Dot(position, forward));
-	mView(3, 3) = 1.0f;
-
-	XMStoreFloat3(&mRight, right);
-	XMStoreFloat3(&mForward, forward);
-	XMStoreFloat3(&mUp, up);
-
-	mView(0, 0) = mRight.x;
-	mView(1, 0) = mRight.y;
-	mView(2, 0) = mRight.z;
-
-	mView(0, 1) = mUp.x;
-	mView(1, 1) = mUp.y;
-	mView(2, 1) = mUp.z;
-
-	mView(0, 2) = mForward.x;
-	mView(1, 2) = mForward.y;
-	mView(2, 2) = mForward.z;
-
-	mView(0, 3) = 0.0f;
-	mView(1, 3) = 0.0f;
-	mView(2, 3) = 0.0f;
-
-	XMStoreFloat4x4(&mViewProj, XMLoadFloat4x4(&mView) * XMLoadFloat4x4(&mProj));
+	UpdateViewMatrix(forward, right, up);
 
 #pragma endregion
 
@@ -165,7 +150,7 @@ void Camera::Update(float _deltaTime)
 void Camera::OnResize()
 {
 	// calculate new projection matrix
-	XMMATRIX proj = XMMatrixPerspectiveFovLH(mFieldOfView, SceneRender::GetApp()->GetAspectRatio(), mNP, mFP);
+	XMMATRIX proj = XMMatrixPerspectiveFovLH(mFieldOfView, mAspect, mNP, mFP);
 	XMStoreFloat4x4(&mProj, proj);
 
 	// calculate new frustum
@@ -196,6 +181,58 @@ void Camera::OnKeyDown()
 
 }
 
+float Camera::GetFOV() const
+{
+	return mFieldOfView;
+}
+
+float Camera::GetAspect() const
+{
+	return mAspect;
+}
+
+float Camera::GetNearPlane() const
+{
+	return mNP;
+}
+
+float Camera::GetFarPlane() const
+{
+	return mFP;
+}
+
+
+void Camera::UpdateViewMatrix(CXMVECTOR forward, CXMVECTOR right, CXMVECTOR up)
+{
+	XMVECTOR position = XMLoadFloat3(&mPosition);
+
+	mView(3, 0) = -XMVectorGetX(XMVector3Dot(position, right));
+	mView(3, 1) = -XMVectorGetX(XMVector3Dot(position, up));
+	mView(3, 2) = -XMVectorGetX(XMVector3Dot(position, forward));
+	mView(3, 3) = 1.0f;
+
+	XMStoreFloat3(&mRight, right);
+	XMStoreFloat3(&mForward, forward);
+	XMStoreFloat3(&mUp, up);
+
+	mView(0, 0) = mRight.x;
+	mView(1, 0) = mRight.y;
+	mView(2, 0) = mRight.z;
+
+	mView(0, 1) = mUp.x;
+	mView(1, 1) = mUp.y;
+	mView(2, 1) = mUp.z;
+
+	mView(0, 2) = mForward.x;
+	mView(1, 2) = mForward.y;
+	mView(2, 2) = mForward.z;
+
+	mView(0, 3) = 0.0f;
+	mView(1, 3) = 0.0f;
+	mView(2, 3) = 0.0f;
+
+	XMStoreFloat4x4(&mViewProj, XMLoadFloat4x4(&mView) * XMLoadFloat4x4(&mProj));
+}
 
 void Camera::MoveForward(float _delta)
 {

@@ -9,6 +9,15 @@ struct Mesh
 	std::vector<UINT> indices;
 };
 
+enum TextureType
+{
+	None,
+	SingleDiffuse,
+	DoubleDiffuse,
+	StaticCube, 
+	DynamicCube
+};
+
 
 class Object
 {
@@ -24,6 +33,8 @@ protected:
 	UINT mVertexOffset = 0;
 	UINT mInstanceAmount = 0;
 	float mDepth = 0;
+	TextureType mTextureType = None;
+
 	char mName[32] = "Object";
 
 	Mesh*                     mMesh = nullptr;
@@ -38,21 +49,21 @@ protected:
 
 protected:
 
-	void SetPS(class Engine* const _app);
+	void SetPSAndRrc(class Engine* const _app);
 
 public:
 
 	void SetIndexOffset(UINT _indexOffset, UINT _vertexOffset);
 
-	void Edit(Mesh* const _mesh, const Material* const _material,  ID3D11ShaderResourceView* const* _mTexMap, UINT _texCount);
+	void Edit(Mesh* const _mesh, const Material* const _material,  ID3D11ShaderResourceView* const* _mTexMap, UINT _texCount,TextureType _TextureType = None);
+
+	void SetTexture(ID3D11ShaderResourceView* const* _mTexMap, UINT _texCount, TextureType _TextureType = None);
 
 	void Update(float _deltaTime);
 
 	void Draw();
 
 	void DrawTransparent();
-
-	void Draw(ID3D11DeviceContext* devContext, ID3D11Buffer* _VSCB, ID3D11Buffer* _PSCB, const class Camera* const _mCam);
 
 	UINT DrawInstance(const InstanceData* const _instData);
 

@@ -15,5 +15,8 @@ float4 main(VertexOut pin)  : SV_TARGET
     mat.shininess = objMaterial.shininess;
     mat.fresenlR0 = objMaterial.fresenlR0;
 
-    return ThreeLightShading(pin, mat);
+    float3 toEye = gEyePosition - pin.pos_w;
+    toEye = normalize(toEye);
+
+    return ThreeLightShading(pin, mat, toEye);
 }

@@ -5,18 +5,18 @@
 
 
 
-[domain("tri")]
+[domain("quad")]
 [partitioning("integer")]
 [outputtopology("triangle_cw")]
-[outputcontrolpoints(3)]
+[outputcontrolpoints(4)]
 [patchconstantfunc("UniformQuad")]
 [maxtessfactor(64.0f)]
 
-VertexInPos main(InputPatch<VertexInPos, 3> p, 
+VertexTerrian main(InputPatch<VertexTerrian, 4> p,
 uint i : SV_OutputControlPointID, 
 uint patchID : SV_PrimitiveID)
 {
-    VertexInPos hsOut;
-    hsOut.pos_l = p[i].pos_l;
+    VertexTerrian hsOut;
+    hsOut = p[i];
     return hsOut;
 }

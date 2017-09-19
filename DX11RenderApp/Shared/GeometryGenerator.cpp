@@ -252,13 +252,13 @@ void GeometryGenerator::CreateSreenQuad(Mesh * _mesh)
 	{ XMFLOAT3(1, 1, 0), normal, XMFLOAT2(1,0) };
 
 	_mesh->vertices[2] =
-	{ XMFLOAT3(1, -1, 0), normal, XMFLOAT2(1,1) };
-
-	_mesh->vertices[3] =
 	{ XMFLOAT3(-1, -1, 0), normal, XMFLOAT2(0,1) };
 
+	_mesh->vertices[3] =
+	{ XMFLOAT3(1, -1, 0), normal, XMFLOAT2(1,1) };
+
 	_mesh->indices[0] = 0; 	_mesh->indices[1] = 1; 	_mesh->indices[2] = 2;
-	_mesh->indices[3] = 0; 	_mesh->indices[4] = 2; 	_mesh->indices[5] = 3;
+	_mesh->indices[3] = 1; 	_mesh->indices[4] = 3; 	_mesh->indices[5] = 2;
 
 }
 

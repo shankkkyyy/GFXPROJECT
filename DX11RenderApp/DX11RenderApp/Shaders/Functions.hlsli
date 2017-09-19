@@ -127,11 +127,8 @@ float3 ComputeSpotLight(Light Ls, Material mat, float3 nor, float3 pos, float3 t
 
 
 
-float4 ThreeLightShading(VertexOut pin, Material mat)
+float4 ThreeLightShading(VertexOut pin, Material mat, float3 toEye)
 {
-    float3 toEye = gEyePosition - pin.pos_w;
-    float toEyeDistance = length(toEye);
-    toEye /= toEyeDistance;
 
     // calculate light
     float3 dirLight = ComputeDirectionalLight(gLight[0], mat, pin.nor_w, toEye);

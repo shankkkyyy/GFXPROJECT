@@ -22,20 +22,38 @@ Object::~Object()
 }
 
 
-void Object::SetPS(Engine* const _app)
+void Object::SetPSAndRrc(Engine* const _app)
 {
 	UINT texCount =(UINT) mTexMaps.size();
 	ID3D11DeviceContext* devContext = _app->GetDeviceContext();
-	switch (texCount)
+
+	switch (mTextureType)
 	{
-	case 0:
+	case None:
 		devContext->PSSetShader(_app->GetShaders()->GetPSt0(), nullptr, 0);
 		break;
-	case 1:
+	case SingleDiffuse:
 		devContext->PSSetShader(_app->GetShaders()->GetPSd1(), nullptr, 0);
 		break;
-	case 2:
+	case DoubleDiffuse:
 		devContext->PSSetShader(_app->GetShaders()->GetPSd2(), nullptr, 0);
+		break;
+	case StaticCube:
+	case DynamicCube:
+		devContext->PSSetShader(_app->GetShaders()->GetPSCube(), nullptr, 0);
+		break;
+	}
+
+
+
+	switch (mTextureType)
+	{
+	case StaticCube:
+	case DynamicCube:
+		devContext->PSSetShaderResources(10, 1, mTexMaps.data());
+		break;
+	default:
+		devContext->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
 		break;
 	}
 }
@@ -46,10 +64,10 @@ void Object::SetIndexOffset(UINT _indexOffset, UINT _vertexOffset)
 	mVertexOffset = _vertexOffset;
 }
 
-void Object::Edit(Mesh * const _mesh, const Material * const _material, ID3D11ShaderResourceView * const* _mTexMap, UINT _texCount)
+void Object::Edit(Mesh * const _mesh, const Material * const _material, ID3D11ShaderResourceView * const * _mTexMap, UINT _texCount, TextureType _TextureType)
 {
 	mMesh = _mesh;
-	;
+
 	BoundingBox::CreateFromPoints(mBound, mMesh->vertices.size(), &mMesh->vertices[0].pos, sizeof(Vertex));
 
 	if (_material == nullptr)
@@ -57,16 +75,43 @@ void Object::Edit(Mesh * const _mesh, const Material * const _material, ID3D11Sh
 	else
 		mToVRAM_PS.material = *_material;
 
-	if (_texCount == 0)
+	SetTexture(_mTexMap, _texCount, _TextureType);
+
+}
+
+void Object::SetTexture(ID3D11ShaderResourceView * const * _mTexMap, UINT _texCount, TextureType _TextureType)
+{
+
+	if (_mTexMap == nullptr)
 	{
+		_texCount = 0;
+		_TextureType = None;
+		return;
+	}
+
+
+	mTextureType = _TextureType;
+	switch (mTextureType)
+	{
+	case StaticCube:
+	case DynamicCube:
+		_texCount = 1;
+		break;
+	default:
+		break;
+	}
+
+	switch (mTextureType)
+	{
+	case None:
 		mToVRAM_PS.renderSetting.x = 0;
 		mTexMaps.clear();
-	}
-	else
-	{
+		break;
+	default:
 		mTexMaps.resize(_texCount);
 		memcpy(mTexMaps.data(), _mTexMap, sizeof(ID3D11ShaderResourceView*)*_texCount);
 		mToVRAM_PS.renderSetting.x = 1;
+		break;
 	}
 }
 
@@ -145,50 +190,46 @@ void Object::Update(float _deltaTime)
 
 void Object::Draw()
 {
-	Engine* const app = Engine::GetEngine();
+	Engine* const engine = Engine::GetEngine();
 
 	// Frustum Culling check
-
-	const Camera* const mainCam = app->GetMainCamera();
+	const Camera* const currCam = engine->GetCurrentScene()->GetCurrentCamera();
 
 	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
 	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
 
-	XMMATRIX worldView = XMMatrixMultiply(world, mainCam->GetViewXM());
+	XMMATRIX worldView = XMMatrixMultiply(world, currCam->GetViewXM());
 	BoundingBox boundingView;
 	mBound.Transform(boundingView, worldView);
 
-	if (mainCam->GetFrustum()->Contains(boundingView) == DirectX::DISJOINT)
+	if (currCam->GetFrustum()->Contains(boundingView) == DirectX::DISJOINT)
 	{
 		return;
 	}
 
-	ID3D11DeviceContext* devContext = app->GetDeviceContext();
+	ID3D11DeviceContext* devContext = engine->GetDeviceContext();
 
 	// set PS
-	SetPS(app);
+	SetPSAndRrc(engine);
 
-	// set texture
-	devContext->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
 
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 
 #pragma region Upload cBuffer VS
 
-	XMMATRIX wvp = world * mainCam->GetViewProjXM();
+	XMMATRIX wvp = world * currCam->GetViewProjXM();
 	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
 
 
-	ID3D11Buffer* _VSCB = app->GetVSCBPerObj();
-	ID3D11Buffer* _PSCB = app->GetPSCBPerObj();
+	ID3D11Buffer* _VSCB = engine->GetCurrentScene()->GetVSCBPerObj();
+	ID3D11Buffer* _PSCB = engine->GetCurrentScene()->GetPSCBPerObj();
 	// map VS cbuffer
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
-	HR(app->GetDeviceContext()->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	HR(engine->GetDeviceContext()->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 	memcpy(mapResource.pData, &mToVRAM_VS, sizeof(mToVRAM_VS));
 	devContext->Unmap(_VSCB, 0);
 	devContext->VSSetConstantBuffers(1, 1, &_VSCB);
-
 
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 	HR(devContext->Map(_PSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
@@ -203,46 +244,43 @@ void Object::Draw()
 
 void Object::DrawTransparent()
 {
-	Engine* const app = Engine::GetEngine();
+	Engine* const engine = Engine::GetEngine();
 
 	// Frustum Culling check
 
-	const Camera* const mainCam = app->GetMainCamera();
+	const Camera* const currCam = engine->GetCurrentScene()->GetCurrentCamera();
 
 	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
 	XMStoreFloat4x4(&mToVRAM_VS.world, XMMatrixTranspose(world));
 
-	XMMATRIX worldView = XMMatrixMultiply(world, mainCam->GetViewXM());
+	XMMATRIX worldView = XMMatrixMultiply(world, currCam->GetViewXM());
 	BoundingBox boundingView;
 	mBound.Transform(boundingView, worldView);
 
-	if (mainCam->GetFrustum()->Contains(boundingView) == DirectX::DISJOINT)
+	if (currCam->GetFrustum()->Contains(boundingView) == DirectX::DISJOINT)
 	{
 		return;
 	}
 
-	ID3D11DeviceContext* devContext = app->GetDeviceContext();
+	ID3D11DeviceContext* devContext = engine->GetDeviceContext();
 
-	// set PS
-	SetPS(app);
-
-	// set texture
-	devContext->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
+	// set PS and Texture
+	SetPSAndRrc(engine);
 
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 
 #pragma region Upload cBuffer VS
 
-	XMMATRIX wvp = world * mainCam->GetViewProjXM();
+	XMMATRIX wvp = world * currCam->GetViewProjXM();
 	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
 
 
-	ID3D11Buffer* _VSCB = app->GetVSCBPerObj();
-	ID3D11Buffer* _PSCB = app->GetPSCBPerObj();
+	ID3D11Buffer* _VSCB = engine->GetCurrentScene()->GetVSCBPerObj();
+	ID3D11Buffer* _PSCB = engine->GetCurrentScene()->GetPSCBPerObj();
 	// map VS cbuffer
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
-	HR(app->GetDeviceContext()->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	HR(engine->GetDeviceContext()->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 	memcpy(mapResource.pData, &mToVRAM_VS, sizeof(mToVRAM_VS));
 	devContext->Unmap(_VSCB, 0);
 	devContext->VSSetConstantBuffers(1, 1, &_VSCB);
@@ -257,7 +295,7 @@ void Object::DrawTransparent()
 #pragma endregion
 
 	// Draw Front Face
-	devContext->RSSetState(app->GetRSFrontCull());
+	devContext->RSSetState(engine->GetRSFrontCull());
 	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
 
 	// Draw Back face
@@ -266,47 +304,11 @@ void Object::DrawTransparent()
 
 }
 
-void Object::Draw(ID3D11DeviceContext * devContext, ID3D11Buffer * _VSCB, ID3D11Buffer* _PSCB, const Camera* const _mCam)
-{
-
-	// set texture
-	devContext->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
-
-	D3D11_MAPPED_SUBRESOURCE mapResource;
-
-#pragma region Upload cBuffer VS
-
-	// set VS cbuffer
-	XMMATRIX world = XMLoadFloat4x4(&mWorldMatrix);
-
-	// wvp, must be update every frame
-	XMMATRIX wvp = world * _mCam->GetViewProjXM();
-	XMStoreFloat4x4(&mToVRAM_VS.wvp, XMMatrixTranspose(wvp));
-
-	// map VS cbuffer
-	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-	HR(devContext->Map(_VSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
-	memcpy(mapResource.pData, &mToVRAM_VS, sizeof(mToVRAM_VS));
-	devContext->Unmap(_VSCB, 0);
-	devContext->VSSetConstantBuffers(1, 1, &_VSCB);
-
-	
-	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-	HR(devContext->Map(_PSCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
-	memcpy(mapResource.pData, &mToVRAM_PS, sizeof(mToVRAM_PS));
-	devContext->Unmap(_PSCB, 0);
-
-	devContext->PSSetConstantBuffers(1, 1, &_PSCB);
-#pragma endregion
-		
-	devContext->DrawIndexed((UINT)mMesh->indices.size(), mIndexOffset, mVertexOffset);
-}
-
 UINT Object::DrawInstance(const InstanceData* const _instData)
 {
 
-	Engine* const app = Engine::GetEngine();
-	const Camera* const mainCamera = app->GetMainCamera();
+	Engine* const engine = Engine::GetEngine();
+	const Camera* const currCam = engine->GetCurrentScene()->GetCurrentCamera();
 	XMMATRIX worldView, world;
 	BoundingBox boundingView;
 
@@ -314,8 +316,8 @@ UINT Object::DrawInstance(const InstanceData* const _instData)
 	D3D11_MAPPED_SUBRESOURCE mapResource;
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 
-	ID3D11Buffer* InstBuffer = app->GetVSIBPerFrame();
-	HR(app->GetDeviceContext()->Map(InstBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	ID3D11Buffer* InstBuffer = engine->GetCurrentScene()->GetInstanceBuffer();
+	HR(engine->GetDeviceContext()->Map(InstBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 
 	InstanceData* visibleInstance = reinterpret_cast<InstanceData*>(mapResource.pData);
 	UINT visibleInstCount = 0;
@@ -323,15 +325,15 @@ UINT Object::DrawInstance(const InstanceData* const _instData)
 	for (UINT i = 0; i < mInstanceAmount; i++)
 	{
 		world = XMLoadFloat4x4(&_instData[i].world);
-		worldView = XMMatrixMultiply(world, mainCamera->GetViewXM());
+		worldView = XMMatrixMultiply(world, currCam->GetViewXM());
 		mBound.Transform(boundingView, worldView);
-		if (mainCamera->GetFrustum()->Contains(boundingView) != DirectX::DISJOINT)
+		if (currCam->GetFrustum()->Contains(boundingView) != DirectX::DISJOINT)
 		{
 			XMStoreFloat4x4(&visibleInstance[visibleInstCount].world, XMMatrixTranspose(world));
 			visibleInstCount++;
 		}
 	}
-	app->GetDeviceContext()->Unmap(InstBuffer, 0);
+	engine->GetDeviceContext()->Unmap(InstBuffer, 0);
 
 
 	if (visibleInstCount == 0)
@@ -341,22 +343,20 @@ UINT Object::DrawInstance(const InstanceData* const _instData)
 
 
 
-	// set PS
-	SetPS(app);
+	// set PS && Texture
+	SetPSAndRrc(engine);
 
-	// Set Texture
-	app->GetDeviceContext()->PSSetShaderResources(0, (UINT)mTexMaps.size(), mTexMaps.data());
 	// updating CB for Ps
-	ID3D11Buffer* PSCBPerObj = app->GetPSCBPerObj();
+	ID3D11Buffer* PSCBPerObj = engine->GetCurrentScene()->GetPSCBPerObj();
 	ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-	HR(app->GetDeviceContext()->Map(PSCBPerObj, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
+	HR(engine->GetDeviceContext()->Map(PSCBPerObj, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource));
 	memcpy(mapResource.pData, &mToVRAM_PS, sizeof(mToVRAM_PS));
-	app->GetDeviceContext()->Unmap(PSCBPerObj, 0);
+	engine->GetDeviceContext()->Unmap(PSCBPerObj, 0);
 
-	app->GetDeviceContext()->PSSetConstantBuffers(1, 1, &PSCBPerObj);
+	engine->GetDeviceContext()->PSSetConstantBuffers(1, 1, &PSCBPerObj);
 
 
-	app->GetDeviceContext()->DrawIndexedInstanced(
+	engine->GetDeviceContext()->DrawIndexedInstanced(
 		(UINT)mMesh->indices.size(), visibleInstCount, mIndexOffset, mVertexOffset, 0);
 
 	return visibleInstCount;
@@ -459,11 +459,14 @@ Objects::Objects()
 	def_material->diffuseAlbedo = { 1.0f,1.0f,1.0f,1.0f };
 	def_material->fresnelR0 = { 0,0,0 };
 	def_material->shininess = 0;
+	def_material->reflection = { 0,0,0,0 };
 
 	silver_material = new Material();
 	silver_material->diffuseAlbedo = XMFLOAT4(DirectX::Colors::Silver);
 	silver_material->fresnelR0 = { 0.9f, 0.9f, 0.9f};
 	silver_material->shininess = 8;	
+	silver_material->reflection = {0.5f,0.5f,0.5f,0.5f};
+
 }
 
 Objects::~Objects()
@@ -547,7 +550,6 @@ ID3D11ShaderResourceView * Objects::GetTreeArrayTexture()
 
 void Objects::LoadAssets(ID3D11Device* _device)
 {
-
 	Objects::LoadObjFile("../Models/cube.obj", testCube_mesh);
 	Objects::LoadObjFile("../Models/car.obj", car_mesh);
 

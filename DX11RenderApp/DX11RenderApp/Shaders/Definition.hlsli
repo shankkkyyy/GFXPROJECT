@@ -19,6 +19,12 @@ struct VertexInPos
     float3 pos_l : POSITION;
 };
 
+struct VertexTerrian
+{
+    float3 pos_l : POSITION;
+    float2 uv    : UV;
+};
+
 struct DomainOut
 {
     float4 pos_h : SV_POSITION;
@@ -66,7 +72,8 @@ struct Material
 {
     float4 diffuseAlbedo;
     float3 fresenlR0;
-    float shininess;
+    float  shininess;
+    float4 reflection;
 };
 
 struct Light

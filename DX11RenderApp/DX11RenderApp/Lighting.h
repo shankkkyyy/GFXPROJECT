@@ -9,6 +9,7 @@ struct Material
 	DirectX::XMFLOAT4 diffuseAlbedo;
 	DirectX::XMFLOAT3 fresnelR0;
 	float             shininess;
+	DirectX::XMFLOAT4 reflection;
 };
 
 struct Light

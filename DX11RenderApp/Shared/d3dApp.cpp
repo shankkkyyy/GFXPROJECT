@@ -464,6 +464,14 @@ void D3DApp::OnResize()
 	mHorBluredSRV.Reset();
 	mHorBluredUAV.Reset();
 
+	mDynamicCubeMapDSV.Reset();
+	mDynamicCubeMapSRV.Reset();
+	
+	for (size_t i = 0; i < 6; i++)
+	{
+		mDynamicCubeMapRTV[i].Reset();
+	}
+
 
 
 #pragma region Recreate Render Target View
@@ -476,33 +484,34 @@ void D3DApp::OnResize()
 
 #pragma endregion
 
+
 #pragma region Recreate Depth Stencil View and buffer
 
-	D3D11_TEXTURE2D_DESC dsvd;
-	ZeroMemory(&dsvd, sizeof(D3D11_TEXTURE2D_DESC));
-	dsvd.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	dsvd.MipLevels = 1; // only one mip level
-	dsvd.ArraySize = 1; // mip level array size = 1
-	dsvd.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24 bit for depth map to [0,1], 8 bit for stencil map to [0, 255]
-	dsvd.Usage = D3D11_USAGE_DEFAULT; // only GPU has access to read and write
-	dsvd.CPUAccessFlags = 0;
-	dsvd.Height = mClientHeight;
-	dsvd.Width = mClientWidth;
-	dsvd.MiscFlags = 0; // has nothing to do with dsv
+	D3D11_TEXTURE2D_DESC dsvTexDesc;
+	ZeroMemory(&dsvTexDesc, sizeof(D3D11_TEXTURE2D_DESC));
+	dsvTexDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	dsvTexDesc.MipLevels = 1; // only one mip level
+	dsvTexDesc.ArraySize = 1; // mip level array size = 1
+	dsvTexDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24 bit for depth map to [0,1], 8 bit for stencil map to [0, 255]
+	dsvTexDesc.Usage = D3D11_USAGE_DEFAULT; // only GPU has access to read and write
+	dsvTexDesc.CPUAccessFlags = 0;
+	dsvTexDesc.Height = mClientHeight;
+	dsvTexDesc.Width = mClientWidth;
+	dsvTexDesc.MiscFlags = 0; // has nothing to do with dsv
 
 	if (bEnable4xMsaa)
 	{
-		dsvd.SampleDesc.Count = 4;
-		dsvd.SampleDesc.Quality = m4xMsaaQuality - 1;
+		dsvTexDesc.SampleDesc.Count = 4;
+		dsvTexDesc.SampleDesc.Quality = m4xMsaaQuality - 1;
 	}
 	else
 	{
-		dsvd.SampleDesc.Count = 1;
-		dsvd.SampleDesc.Quality = 0;
+		dsvTexDesc.SampleDesc.Count = 1;
+		dsvTexDesc.SampleDesc.Quality = 0;
 	}
 
 
-	HR(md3dDevice->CreateTexture2D(&dsvd, nullptr, &mDepthStencilBuffer));
+	HR(md3dDevice->CreateTexture2D(&dsvTexDesc, nullptr, &mDepthStencilBuffer));
 
 	HR(md3dDevice->CreateDepthStencilView(mDepthStencilBuffer, nullptr, &md3dDSV));
 
@@ -587,19 +596,92 @@ void D3DApp::OnResize()
 	ReleaseCOM(horBlurTex);
 #pragma endregion
 
-
 #pragma region Setup ViewPort	
 	mScreenViewPort.TopLeftX = 0;
 	mScreenViewPort.TopLeftY = 0;
 	mScreenViewPort.MinDepth = 0;
 	mScreenViewPort.MaxDepth = 1;
 	mScreenViewPort.Width = static_cast<float>(mClientWidth);
-	mScreenViewPort.Height = static_cast<float>(mClientHeight);	
+	mScreenViewPort.Height = static_cast<float>(mClientHeight);
+
+	mCubeMapViewPort.TopLeftX = 0;
+	mCubeMapViewPort.TopLeftY = 0;
+	mCubeMapViewPort.Width  = round(0.25f * mScreenViewPort.Height);
+	mCubeMapViewPort.Height = mCubeMapViewPort.Width;
+	mCubeMapViewPort.MinDepth = 0;
+	mCubeMapViewPort.MaxDepth = 1;
+
 	md3dImmediateContext->RSSetViewports(1, &mScreenViewPort);
 #pragma endregion
 
-	CalculateAspectRatio();
+#pragma region Recreate Dynamic Cube Map Views
 
+	ZeroMemory(&texDesc, sizeof(texDesc));
+	texDesc.Width = (UINT)mCubeMapViewPort.Width;
+	texDesc.Height = (UINT)mCubeMapViewPort.Height;
+	texDesc.MipLevels = 0;
+	texDesc.ArraySize = 6;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.SampleDesc.Quality = 0;
+	texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	texDesc.CPUAccessFlags = 0;
+	texDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS | D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+	ID3D11Texture2D* cubeTex = nullptr;
+	HR(md3dDevice->CreateTexture2D(&texDesc, nullptr, &cubeTex));
+
+	D3D11_RENDER_TARGET_VIEW_DESC rtvd;
+	rtvd.Format = texDesc.Format;
+	rtvd.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+	rtvd.Texture2DArray.ArraySize = 1;
+	rtvd.Texture2DArray.MipSlice = 0;
+
+	for (size_t i = 0; i < 6; i++)
+	{
+		rtvd.Texture2DArray.FirstArraySlice =(UINT)i;
+		HR(md3dDevice->CreateRenderTargetView(cubeTex, &rtvd, mDynamicCubeMapRTV[i].GetAddressOf()));
+	}
+
+	ZeroMemory(&srvDesc, sizeof(srvDesc));
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.TextureCube.MipLevels = -1;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+
+	HR(md3dDevice->CreateShaderResourceView(cubeTex, &srvDesc, mDynamicCubeMapSRV.GetAddressOf()));
+	ReleaseCOM(cubeTex);
+
+	ZeroMemory(&dsvTexDesc, sizeof(dsvTexDesc));
+	dsvTexDesc.ArraySize = 1;
+	dsvTexDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	dsvTexDesc.CPUAccessFlags = 0;
+	dsvTexDesc.MiscFlags = 0;
+	dsvTexDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvTexDesc.MipLevels = 1;
+	dsvTexDesc.Height = texDesc.Height;
+	dsvTexDesc.Width = texDesc.Width;
+	dsvTexDesc.Usage = D3D11_USAGE_DEFAULT;
+	dsvTexDesc.SampleDesc.Count = 1;
+	dsvTexDesc.SampleDesc.Quality = 0;
+
+	ID3D11Texture2D* depthTex = nullptr;
+	HR(md3dDevice->CreateTexture2D(&dsvTexDesc, nullptr, &depthTex));
+
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvD;
+	dsvD.Format = dsvTexDesc.Format;
+	dsvD.Flags = 0;
+	dsvD.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	dsvD.Texture2D.MipSlice = 0;
+	HR(md3dDevice->CreateDepthStencilView(depthTex, &dsvD, mDynamicCubeMapDSV.GetAddressOf()));
+
+	ReleaseCOM(depthTex);
+
+
+#pragma endregion
+
+	CalculateAspectRatio();
 }
 
 
@@ -668,6 +750,77 @@ ID3D11RasterizerState * D3DApp::GetRSNoCull() const
 ID3D11RasterizerState * D3DApp::GetRSWireFrame() const
 {
 	return mRSWireFrame.Get();
+}
+
+ID3D11RenderTargetView * D3DApp::GetRenderTarget() const
+{
+	return md3dRTV;
+}
+
+ID3D11RenderTargetView * D3DApp::GetOffScreenRTV() const
+{
+	return mOffscreenRTV.Get();
+}
+
+ID3D11DepthStencilView * D3DApp::GetDepthStencilView() const
+{
+	return md3dDSV;
+}
+
+ID3D11UnorderedAccessView * D3DApp::GetOffScreenUAV() const
+{
+	return mOffscreenUAV.Get();
+}
+
+ID3D11ShaderResourceView * D3DApp::GetOffScreenSRV() const
+{
+	return mOffscreenSRV.Get();
+}
+
+ID3D11UnorderedAccessView * D3DApp::GetHorBluredUAV() const
+{
+	return mHorBluredUAV.Get();
+}
+
+ID3D11ShaderResourceView * D3DApp::GetHorBluredSRV() const
+{
+	return mHorBluredSRV.Get();
+}
+
+const D3D11_VIEWPORT * D3DApp::GetScreenViewPort() const
+{
+	return &mScreenViewPort;
+}
+
+const D3D11_VIEWPORT * D3DApp::GetCubeMapViewPort() const
+{
+	return &mCubeMapViewPort;
+}
+
+
+ID3D11DepthStencilView * D3DApp::GetDynamicCubeMapDSV() const
+{
+	return mDynamicCubeMapDSV.Get();
+}
+
+ID3D11ShaderResourceView * D3DApp::GetDynamicCubeMapSRV() const
+{
+	return mDynamicCubeMapSRV.Get();
+}
+
+ID3D11RenderTargetView * D3DApp::GetDynamicCubeMapRTV(UINT _index) const
+{
+	return mDynamicCubeMapRTV[_index].Get();
+}
+
+int D3DApp::GetScreenHeight() const
+{
+	return (UINT)mClientHeight;
+}
+
+int D3DApp::GetScreenWidth() const
+{
+	return (UINT)mClientWidth;
 }
 
 void D3DApp::CreateRasterizationStates()

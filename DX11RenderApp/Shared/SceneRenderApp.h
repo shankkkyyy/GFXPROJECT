@@ -19,6 +19,12 @@ public:
 
 	Camera*                   GetMainCamera() const;
 
+	Camera**                  GetDynamicCubeMapCamera() const;
+
+	void SetDynamicCubeMapCamera(XMFLOAT3 _center);
+
+	
+
 protected:
 
 	virtual void OnResize();
@@ -31,8 +37,12 @@ protected:
 
 	virtual void OnKeyDown() override;
 
-private:
+private: 
+
+	bool bIsFirstTimeOnResize = true;
 
 	Camera*   mMainCamera;
+
+	std::vector<Camera*>* mDynamicCubeMapCam;
 };
 
