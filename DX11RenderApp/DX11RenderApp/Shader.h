@@ -40,6 +40,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11HullShader>   mTerrian_HS;
 	Microsoft::WRL::ComPtr<ID3D11DomainShader> mTerrian_DS;
 	Microsoft::WRL::ComPtr<ID3D11PixelShader>  mTess_PS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader>  mTerrian_PS;
 
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> mILpos;
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> mILBasic32;
@@ -77,6 +78,7 @@ public:
 	ID3D11VertexShader* GetTerrianVS() const;
 	ID3D11HullShader*   GetTerrianHS() const;
 	ID3D11DomainShader* GetTerrianDS() const;
+	ID3D11PixelShader*  GetTessPS() const;
 	ID3D11PixelShader*  GetTerrianPS() const;
 
 

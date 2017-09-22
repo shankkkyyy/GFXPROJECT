@@ -1,0 +1,54 @@
+
+
+
+
+Camera Control:
+
+WASD for movement
+Hold downing left mouse button to look around
+SPACE for going up LEFT SHIFT for going down
+Mouse Scroll up to Zoom in, Mouse Scroll down to Zoom Out
+
+
+
+
+This DX11 has two scenes: 
+
+Terrian (default) and CarDemo
+
+Press 1 to activate Terrian Scene, Press 2 to activate CarDemo
+
+
+In Terrian Scene:
+
+Press R to activate the wireframe to check the change of LOD via tesselation.
+The Terrian itself is also an example of multi-texturing.
+Press HOME to reset.
+
+In CarDemo Scene:
+
+there are 2 cube and a sphere are transparent objs whose drawn order have been sorted based on their depth of view
+each sphere with reflection of skybox are created by instancing.
+the sphere with reflection of entire environment is example of render to texture.
+all opague sphere has specular material.
+
+the trees are a created by geometry shader (point to quad).
+
+
+Yellow light is a point light
+Pink light is a spot light
+Directional light is rotating on z axis
+
+PRESS B to activate BLUR post process(using compute shader)
+PRESS HOME to reset
+
+Frustum culling is done for every objs by CPU before draw call
+
+Press alt - enter to enter full screen
+
+
+
+
+
+
+

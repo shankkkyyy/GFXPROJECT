@@ -108,6 +108,9 @@ private:
 	void RenderOffScreen() override;
 	void RenderToScreen() override;
 
+	void SwitchToWireFrame();
+	void SwitchToNormal();
+
 private:
 
 	HSCBPerFrame mHSCBPerFrame;

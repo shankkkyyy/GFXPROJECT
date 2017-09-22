@@ -60,6 +60,7 @@ Texture2D RTT : register(t9);                     // For Blur
 TextureCube cubeMap : register(t10);
 Texture2DArray diffuseMapArray : register(t11);
 Texture2D heightMap : register(t12);
+Texture2D blendMap : register(t13);
 
 
 RWTexture2D<unorm float4> PostProcOutput : register(u0); // For BLur

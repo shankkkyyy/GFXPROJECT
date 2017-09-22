@@ -142,7 +142,7 @@ void Engine::CreateScreenBuffer()
 
 void Engine::InitRenderSettings()
 {
-	ID3D11SamplerState* arr[2] = { mSSs[0].Get(), mSSs[1].Get() };
+	ID3D11SamplerState* arr[2] = { mSSANISOTROPICWRAP.Get(), mSSANISOTROPICCLAMP.Get() };
 	md3dImmediateContext->PSSetSamplers(0, _countof(arr), arr);
 
 	// Build Screen Vertex

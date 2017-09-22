@@ -10,10 +10,10 @@ class Terrian
 public:
 	struct TerrianInfo
 	{
-		std::wstring heightMapFileName;
-		float heightScale;
+		// assuming the size of height map is known
+		float heightScale, cellSpacing;
 		UINT heightMapWidth, heightMapDepth;
-		float cellSpacing;
+		std::wstring heightMap;
 	};
 
 public:
@@ -34,8 +34,11 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mQuadCtrlPtsBuffer;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> mQuadIndicesBuffer;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mHeightSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mBlendMapSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mLayersMapSRV;
 
-
+	
 	std::vector<struct VertexTerrian>* mCtrlPts = nullptr;
 	std::vector<UINT>*  mIndices = nullptr;
 
@@ -46,6 +49,14 @@ public:
 	const std::vector<struct VertexTerrian>* const GetCtrlPoints()  const;
 	const std::vector<UINT>* const                 GetIndices()     const;
 
+	ID3D11ShaderResourceView*     GetHeightSRV() const;
+	ID3D11ShaderResourceView*     GetLayerSRV() const;
+	ID3D11ShaderResourceView*     GetBlendSRV() const;
+
+private:
+
+	void LoadHeightMap();
+	void LoadTexture();
 
 };
 

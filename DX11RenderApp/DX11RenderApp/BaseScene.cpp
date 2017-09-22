@@ -110,7 +110,7 @@ void BaseScene::RenderToScreen()
 	ID3D11RenderTargetView* screenRTV = mEngine->GetRenderTarget();
 	ID3D11DepthStencilView* dsv = mEngine->GetDepthStencilView();
 	md3dImmediateContext->OMSetRenderTargets(1, &screenRTV, dsv);
-	md3dImmediateContext->ClearRenderTargetView(screenRTV, DirectX::Colors::DarkGreen);
+	md3dImmediateContext->ClearRenderTargetView(screenRTV, DirectX::Colors::SkyBlue);
 	md3dImmediateContext->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
 
@@ -171,8 +171,8 @@ void CountrySide::EditScene()
 	tInfo.cellSpacing = 0.5f;
 	tInfo.heightMapDepth = 2049;
 	tInfo.heightMapWidth = 2049;
-	tInfo.heightScale = 20.0f;
-	tInfo.heightMapFileName = L"fgb";
+	tInfo.heightScale = 50.0f;
+	tInfo.heightMap = L"../Models/terrain.raw";
 	mTerrian->Initialize(tInfo);
 
 }
@@ -200,12 +200,27 @@ void CountrySide::CreateConstantBuffer()
 void CountrySide::InitialRenderSettings()
 {
 
-	md3dImmediateContext->RSSetState(mEngine->GetRSWireFrame());
+
+	ID3D11SamplerState* ss = mEngine->GetSSANISOTROPICWRAP();
+	md3dImmediateContext->DSSetSamplers(0, 1, &ss);
+
 
 	md3dImmediateContext->VSSetShader(mShaders->GetTerrianVS(), 0, 0);
 	md3dImmediateContext->HSSetShader(mShaders->GetTerrianHS(), 0, 0);
 	md3dImmediateContext->DSSetShader(mShaders->GetTerrianDS(), 0, 0);
 	md3dImmediateContext->PSSetShader(mShaders->GetTerrianPS(), 0, 0);
+
+
+	// set height map
+	ID3D11ShaderResourceView* resourceSRV = mTerrian->GetHeightSRV();
+	md3dImmediateContext->VSSetShaderResources(12, 1, &resourceSRV);
+	md3dImmediateContext->DSSetShaderResources(12, 1, &resourceSRV);
+
+	// set layer map and blend map
+	resourceSRV = mTerrian->GetBlendSRV();
+	md3dImmediateContext->PSSetShaderResources(13, 1, &resourceSRV);
+	resourceSRV = mTerrian->GetLayerSRV();
+	md3dImmediateContext->PSSetShaderResources(11, 1, &resourceSRV);
 
 	BaseScene::InitialRenderSettings();
 
@@ -213,6 +228,14 @@ void CountrySide::InitialRenderSettings()
 
 void CountrySide::Update(float _deltaTime)
 {
+	if (GetAsyncKeyState(KEY_R) & 0x8000)
+	{
+		SwitchToWireFrame();
+	}
+	else if (GetAsyncKeyState(VK_HOME) & 0x8000)
+	{
+		SwitchToNormal();
+	}
 }
 
 void CountrySide::RenderOffScreen()
@@ -245,6 +268,19 @@ void CountrySide::RenderToScreen()
 	md3dImmediateContext->DSSetConstantBuffers(0, 1, mCBPerFrame_DS.GetAddressOf());
 
 	mTerrian->Draw();
+}
+
+void CountrySide::SwitchToWireFrame()
+{
+	md3dImmediateContext->RSSetState(mEngine->GetRSWireFrame());
+	md3dImmediateContext->PSSetShader(mShaders->GetTessPS(), 0, 0);
+}
+
+void CountrySide::SwitchToNormal()
+{
+	md3dImmediateContext->RSSetState(nullptr);
+	md3dImmediateContext->PSSetShader(mShaders->GetTerrianPS(), 0, 0);
+
 }
 
 void CountrySide::CleanScene()

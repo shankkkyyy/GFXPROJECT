@@ -28,6 +28,10 @@ struct VertexTerrian
 struct DomainOut
 {
     float4 pos_h : SV_POSITION;
+    float3 pos_w : POSITION;
+    float2 uvHeight : UVHEIGHT;
+    float2 uvLayer  : UVLAYER;
+
 };
 
 struct VertexOutPos

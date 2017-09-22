@@ -119,7 +119,8 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D11BlendState>        mBSNoRenderTargetWrite = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11BlendState>        mBSAlphaToCoverage     = nullptr;
 
-	std::vector < Microsoft::WRL::ComPtr<ID3D11SamplerState>> mSSs;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState>      mSSANISOTROPICWRAP = nullptr;
+	Microsoft::WRL::ComPtr<ID3D11SamplerState>      mSSANISOTROPICCLAMP = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> mDynamicCubeMapDSV  = nullptr;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> mDynamicCubeMapRTV[6];
@@ -161,6 +162,10 @@ public:
 	ID3D11DepthStencilView*   GetDynamicCubeMapDSV() const;
 	ID3D11ShaderResourceView* GetDynamicCubeMapSRV()const;
 	ID3D11RenderTargetView*   GetDynamicCubeMapRTV(UINT _index)const;
+
+	ID3D11SamplerState*  GetSSANISOTROPICWRAP() const;
+	ID3D11SamplerState*  GetSSANISOTROPICCLAMP() const;
+
 
 	int GetScreenHeight()   const;
 	int GetScreenWidth()    const;

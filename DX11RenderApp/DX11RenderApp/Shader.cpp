@@ -105,9 +105,14 @@ ID3D11DomainShader * Shader::GetTerrianDS() const
 	return mTerrian_DS.Get();
 }
 
-ID3D11PixelShader * Shader::GetTerrianPS() const
+ID3D11PixelShader * Shader::GetTessPS() const
 {
 	return mTess_PS.Get();
+}
+
+ID3D11PixelShader * Shader::GetTerrianPS() const
+{
+	return mTerrian_PS.Get();
 }
 
 ID3D11InputLayout * Shader::GetPosIL() const
@@ -144,52 +149,52 @@ void Shader::LoadShaders(ID3D11Device * _device)
 
 #pragma region Load shaders for basic32 Vertex
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/VertexShader.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/VertexShader.cso", byteCode))
 	{
 		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mobj_VS.GetAddressOf()));
 		HR(_device->CreateInputLayout(
 			InputLayoutDesc::IDBasic32, _countof(InputLayoutDesc::IDBasic32), byteCode.data(), byteCode.size(), mILBasic32.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSInstance.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/VSInstance.cso", byteCode))
 	{
 		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mInst_VS.GetAddressOf()));
 		HR(_device->CreateInputLayout(
 			InputLayoutDesc::IDBasic32Inst, _countof(InputLayoutDesc::IDBasic32Inst), byteCode.data(), byteCode.size(), mILBasic32Inst.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSRTT.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/VSRTT.cso", byteCode))
 	{
 		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mRTT_VS.GetAddressOf()));
 	}
 
 	// Load Pixel shader for basic32 Vertex
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSt0.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/PSt0.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSt0.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSd1.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/PSd1.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSd1.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSd2.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/PSd2.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSd2.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSShadow.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/PSShadow.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mObjShadow_PS.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSRTT_red.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/PSRTT_red.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mRTT_PSRed.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSCubeMap.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/PSCubeMap.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mobj_PSCube.GetAddressOf()));
 	}
@@ -199,14 +204,14 @@ void Shader::LoadShaders(ID3D11Device * _device)
 
 #pragma region Load shaders for SkyBox
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/SkyBoxVS.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/SkyBoxVS.cso", byteCode))
 	{
 		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, msky_VS.GetAddressOf()));
 		HR(_device->CreateInputLayout(
 			InputLayoutDesc::IDPos, _countof(InputLayoutDesc::IDPos), byteCode.data(), byteCode.size(), mILpos.GetAddressOf()));
 	}
 	// Load PS for SkyBox
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/SkyBoxPS.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/SkyBoxPS.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, msky_PS.GetAddressOf()));
 	}
@@ -214,19 +219,19 @@ void Shader::LoadShaders(ID3D11Device * _device)
 
 #pragma region Load Shaders for Billboard
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSBillboard.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/VSBillboard.cso", byteCode))
 	{
 		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mBB_VS.GetAddressOf()));
 		HR(_device->CreateInputLayout(
 			InputLayoutDesc::IDPosSize, _countof(InputLayoutDesc::IDPosSize), byteCode.data(), byteCode.size(), mILposSize.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSBillboard.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/PSBillboard.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mBB_PS.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/GSBillboard.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/GSBillboard.cso", byteCode))
 	{
 		HR(_device->CreateGeometryShader (byteCode.data(), byteCode.size(), nullptr, mBB_GS.GetAddressOf()));
 	}
@@ -234,12 +239,12 @@ void Shader::LoadShaders(ID3D11Device * _device)
 
 
 #pragma region Load Shaders for Blur
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/CSHorBlur.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/CSHorBlur.cso", byteCode))
 	{
 		HR(_device->CreateComputeShader(byteCode.data(), byteCode.size(), nullptr, mBlurHor_CS.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/CSVertBlur.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/CSVertBlur.cso", byteCode))
 	{
 		HR(_device->CreateComputeShader(byteCode.data(), byteCode.size(), nullptr, mBlurVert_CS.GetAddressOf()));
 	}
@@ -248,24 +253,30 @@ void Shader::LoadShaders(ID3D11Device * _device)
 
 #pragma region Load Shaders for Tess
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/VSTerrian.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/VSTerrian.cso", byteCode))
 	{
 		HR(_device->CreateVertexShader(byteCode.data(), byteCode.size(), nullptr, mTerrian_VS.GetAddressOf()));
 		HR(_device->CreateInputLayout(
 			InputLayoutDesc::IDTerrian, _countof(InputLayoutDesc::IDTerrian), byteCode.data(), byteCode.size(), mILTerrian.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/HSTerrian.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/HSTerrian.cso", byteCode))
 	{
 		HR(_device->CreateHullShader(byteCode.data(), byteCode.size(), nullptr, mTerrian_HS.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/DSTerrian.cso", byteCode))
+	if (d3dHelper::LoadByteCode(L"Shaders/DSTerrian.cso", byteCode))
 	{
 		HR(_device->CreateDomainShader(byteCode.data(), byteCode.size(), nullptr, mTerrian_DS.GetAddressOf()));
 	}
 
-	if (d3dHelper::LoadShaderByteCode(L"Shaders/PSTess.cso", byteCode))
+
+	if (d3dHelper::LoadByteCode(L"Shaders/PSTerr.cso", byteCode))
+	{
+		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mTerrian_PS.GetAddressOf()));
+	}
+
+	if (d3dHelper::LoadByteCode(L"Shaders/PSTess.cso", byteCode))
 	{
 		HR(_device->CreatePixelShader(byteCode.data(), byteCode.size(), nullptr, mTess_PS.GetAddressOf()));
 	}

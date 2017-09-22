@@ -521,7 +521,6 @@ ID3D11ShaderResourceView * Objects::GetCarTexture()
 	return car_texture.Get();
 }
 
-
 ID3D11ShaderResourceView * Objects::GetSkyTexuture()
 {
 	return sky_texture.Get();
@@ -548,6 +547,7 @@ ID3D11ShaderResourceView * Objects::GetTreeArrayTexture()
 }
 
 
+
 void Objects::LoadAssets(ID3D11Device* _device)
 {
 	Objects::LoadObjFile("../Models/cube.obj", testCube_mesh);
@@ -563,8 +563,6 @@ void Objects::LoadAssets(ID3D11Device* _device)
 	HR(CreateDDSTextureFromFile(_device, L"../Models/brick01.dds", nullptr,    wall_texture.GetAddressOf()));
 	HR(CreateDDSTextureFromFile(_device, L"../Models/ice.dds", nullptr, ice_texture.GetAddressOf()));
 	HR(CreateDDSTextureFromFile(_device, L"../Models/treearray.dds", nullptr, treeArray_texture.GetAddressOf()));
-
-
 }
 
 bool Objects::LoadObjFile(const char * _path, Mesh* _out)

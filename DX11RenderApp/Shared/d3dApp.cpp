@@ -813,6 +813,16 @@ ID3D11RenderTargetView * D3DApp::GetDynamicCubeMapRTV(UINT _index) const
 	return mDynamicCubeMapRTV[_index].Get();
 }
 
+ID3D11SamplerState * D3DApp::GetSSANISOTROPICWRAP() const
+{
+	return mSSANISOTROPICWRAP.Get();
+}
+
+ID3D11SamplerState * D3DApp::GetSSANISOTROPICCLAMP() const
+{
+	return mSSANISOTROPICCLAMP.Get();
+}
+
 int D3DApp::GetScreenHeight() const
 {
 	return (UINT)mClientHeight;
@@ -859,8 +869,6 @@ void D3DApp::CreateSamplerStates()
 {
 
 
-	mSSs.resize(2);
-
 	D3D11_SAMPLER_DESC sd;
 	ZeroMemory(&sd, sizeof(sd));
 	sd.Filter = D3D11_FILTER_ANISOTROPIC;
@@ -871,14 +879,14 @@ void D3DApp::CreateSamplerStates()
 	sd.MinLOD = -FLT_MAX;
 	sd.MaxLOD = FLT_MAX;
 
-	HR(md3dDevice->CreateSamplerState(&sd, mSSs[0].GetAddressOf()));
+	HR(md3dDevice->CreateSamplerState(&sd, mSSANISOTROPICWRAP.GetAddressOf()));
 
 
 	sd.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sd.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 
-	HR(md3dDevice->CreateSamplerState(&sd, mSSs[1].GetAddressOf()));
+	HR(md3dDevice->CreateSamplerState(&sd, mSSANISOTROPICCLAMP.GetAddressOf()));
 
 }
 

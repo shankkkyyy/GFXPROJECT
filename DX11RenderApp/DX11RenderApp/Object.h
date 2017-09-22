@@ -121,12 +121,15 @@ public:
 	static Material* GetSilverMaterial();
 	static Material* GetDefMaterial();
 
+
 	static ID3D11ShaderResourceView* GetCarTexture();
 	static ID3D11ShaderResourceView* GetSkyTexuture();
 	static ID3D11ShaderResourceView* GetFloorTexture();
 	static ID3D11ShaderResourceView* GetWallTexture();
 	static ID3D11ShaderResourceView* GetIceTexture();
 	static ID3D11ShaderResourceView* GetTreeArrayTexture();
+
+
 
 
 private:
@@ -146,6 +149,9 @@ private:
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> wall_texture;
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ice_texture;
 	static Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> treeArray_texture;
+
+	// for terrian
+
 
 
 public:

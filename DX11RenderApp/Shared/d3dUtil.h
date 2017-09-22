@@ -23,7 +23,6 @@
 #define MAXTESSFACTOR 64
 
 
-// has d3d11.h
 #include <DirectXColors.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
@@ -114,7 +113,7 @@ class d3dHelper
 {
 public:
 
-	static bool LoadShaderByteCode(const wchar_t* _path, std::vector<char>& _byteCode);
+	static bool LoadByteCode(const wchar_t* _path, std::vector<char>& _byteCode);
 	static void ForwardVector(XMFLOAT3& _val);
 	static void RightVector(XMFLOAT3& _val);
 	static void UpVector(XMFLOAT3& _val);
